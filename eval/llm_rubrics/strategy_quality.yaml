@@ -1,0 +1,189 @@
+# Strategy Quality Evaluation Rubric
+# For assessing LLM-generated strategic recommendations in financial modeling context
+
+rubric:
+  name: Strategy Quality Assessment
+  version: "1.0"
+  domain: Financial Model Audit Recommendations
+
+dimensions:
+  economic_plausibility:
+    description: |
+      Does the recommendation make economic sense given market dynamics,
+      accounting principles, and real-world constraints?
+    scale:
+      1:
+        label: "Fundamentally Flawed"
+        description: "Recommendation contradicts basic economic principles"
+        examples:
+          - "Suggests increasing revenue by 500% without explaining drivers"
+          - "Recommends negative WACC as 'conservative'"
+          - "Proposes perpetual growth rate exceeding GDP growth indefinitely"
+      2:
+        label: "Economically Questionable"
+        description: "Contains logical gaps or unrealistic assumptions"
+        examples:
+          - "Assumes linear margin expansion without competitive response"
+          - "Ignores working capital implications of revenue growth"
+          - "Treats cyclical patterns as permanent structural shifts"
+      3:
+        label: "Economically Acceptable"
+        description: "Sound reasoning with some gaps or oversimplifications"
+        examples:
+          - "Correctly identifies drivers but oversimplifies their interactions"
+          - "Valid framework but missing sector-specific nuances"
+          - "Appropriate skepticism but insufficient alternative scenarios"
+      4:
+        label: "Economically Sound"
+        description: "Well-reasoned with appropriate qualifications"
+        examples:
+          - "Identifies key sensitivities and their directional impacts"
+          - "Acknowledges model limitations and boundary conditions"
+          - "Applies appropriate discount rates with clear justification"
+      5:
+        label: "Economically Rigorous"
+        description: "Sophisticated understanding with nuanced recommendations"
+        examples:
+          - "Correctly models second-order effects and feedback loops"
+          - "Provides scenario-based recommendations with probability weighting"
+          - "Integrates macro, industry, and company-specific factors coherently"
+
+  actionability:
+    description: |
+      Can the recommendation be translated into concrete next steps
+      by a financial analyst or model reviewer?
+    scale:
+      1:
+        label: "Completely Vague"
+        description: "No clear action can be derived"
+        examples:
+          - "'Consider improving the model' without specifics"
+          - "'Revenue assumptions may need review' with no direction"
+          - "Generic advice that applies to any model"
+      2:
+        label: "Partially Actionable"
+        description: "Direction is clear but implementation path is unclear"
+        examples:
+          - "Identifies problematic cells but not how to fix them"
+          - "Flags concern without explaining validation approach"
+          - "Recommends 'sensitivity analysis' without specifying variables"
+      3:
+        label: "Moderately Actionable"
+        description: "Clear direction with some implementation ambiguity"
+        examples:
+          - "Specific cells identified, general fix approach outlined"
+          - "Validation steps described but not fully operationalized"
+          - "Priority order suggested but resource requirements unclear"
+      4:
+        label: "Clearly Actionable"
+        description: "Specific steps with clear implementation path"
+        examples:
+          - "Cell references, formula corrections, and verification steps provided"
+          - "Clear checklist for analyst to follow"
+          - "Prioritized remediation with estimated effort levels"
+      5:
+        label: "Immediately Executable"
+        description: "Ready-to-implement with verification criteria"
+        examples:
+          - "Step-by-step remediation with before/after formulas"
+          - "Automated check suggestions with expected outcomes"
+          - "Complete implementation plan with quality gates"
+
+  proportionality:
+    description: |
+      Is the severity of the recommendation proportional to the
+      materiality and risk of the identified issue?
+    scale:
+      1:
+        label: "Grossly Disproportionate"
+        description: "Recommendation severity wildly mismatched to issue"
+        examples:
+          - "Recommends full model rebuild for minor formatting issue"
+          - "Dismisses balance sheet errors as 'cosmetic'"
+          - "Treats $100 variance same as $100M variance"
+      2:
+        label: "Somewhat Disproportionate"
+        description: "Noticeable mismatch between issue and response"
+        examples:
+          - "Urgent language for low-materiality findings"
+          - "Casual treatment of items affecting key outputs"
+          - "Uniform priority assigned to disparate issues"
+      3:
+        label: "Generally Proportionate"
+        description: "Reasonable match with some calibration issues"
+        examples:
+          - "Correct prioritization but imprecise effort estimates"
+          - "Appropriate urgency levels with minor exceptions"
+          - "Materiality considered but thresholds unclear"
+      4:
+        label: "Well-Calibrated"
+        description: "Response proportional to risk and materiality"
+        examples:
+          - "Clear materiality thresholds driving prioritization"
+          - "Effort recommendations scaled to impact"
+          - "Risk-based triage with explicit criteria"
+      5:
+        label: "Precisely Calibrated"
+        description: "Sophisticated risk-impact-effort optimization"
+        examples:
+          - "Quantified impact ranges for each finding"
+          - "Cost-benefit analysis of remediation options"
+          - "Staged response based on model use case"
+
+  internal_consistency:
+    description: |
+      Are the recommendations internally coherent, or do they
+      contradict each other or the supporting analysis?
+    scale:
+      1:
+        label: "Self-Contradictory"
+        description: "Recommendations directly contradict each other"
+        examples:
+          - "Recommends both simplifying and adding more scenarios"
+          - "Flags cell as error, then references it as valid input"
+          - "Criticizes assumption, then uses same assumption in fix"
+      2:
+        label: "Internally Inconsistent"
+        description: "Logical tensions between recommendations"
+        examples:
+          - "Different standards applied to similar issues"
+          - "Prioritization conflicts with stated criteria"
+          - "Tone shifts between sections without explanation"
+      3:
+        label: "Mostly Consistent"
+        description: "Generally coherent with minor tensions"
+        examples:
+          - "Consistent framework with occasional lapses"
+          - "Clear logic with some unexplained exceptions"
+          - "Aligned recommendations with slight overlap"
+      4:
+        label: "Internally Coherent"
+        description: "Recommendations form a consistent whole"
+        examples:
+          - "Clear logical thread connecting findings"
+          - "Consistent severity calibration throughout"
+          - "Remediation steps build on each other logically"
+      5:
+        label: "Perfectly Integrated"
+        description: "Recommendations form optimized, non-redundant set"
+        examples:
+          - "Each recommendation addresses unique issue without overlap"
+          - "Clear dependency ordering for implementation"
+          - "Holistic view of model health with no gaps or redundancy"
+
+evaluation_guidance:
+  aggregation_method: weighted_average
+  dimension_weights:
+    economic_plausibility: 0.30
+    actionability: 0.25
+    proportionality: 0.25
+    internal_consistency: 0.20
+
+  minimum_acceptable_score: 3.0
+  excellence_threshold: 4.5
+
+  notes: |
+    - Score each dimension independently before aggregating
+    - Document specific examples supporting each score
+    - Consider domain context when applying economic plausibility criteria
+    - Actionability scoring should account for intended audience expertise level
