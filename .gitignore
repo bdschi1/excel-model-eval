@@ -1,0 +1,24 @@
+# Data Protection
+data/
+temp_data/
+RESULTS/
+*.xlsx
+*.xlsm
+*.csv
+
+# Exception: Sample models for testing (allow these to be pushed)
+!sample_models/*.xlsx
+
+# Logs
+audit_history.csv
+audit_history.log
+
+# Python
+__pycache__/
+*.pyc
+.DS_Store
+
+# Environment variables (API keys - NEVER commit these)
+.env
+.env.local
+.env.*.local

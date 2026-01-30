@@ -1,0 +1,236 @@
+# Reasoning Fidelity Evaluation Rubric
+# For assessing whether LLM explanations accurately reflect the underlying analysis
+
+rubric:
+  name: Reasoning Fidelity Assessment
+  version: "1.0"
+  domain: LLM-Generated Financial Analysis Explanations
+
+dimensions:
+  signal_action_consistency:
+    description: |
+      Does the stated reasoning actually support the recommended action?
+      Is there a clear, traceable link from evidence to conclusion?
+    scale:
+      1:
+        label: "Complete Disconnect"
+        description: "Action has no logical connection to stated reasoning"
+        examples:
+          - "Cites positive revenue trend, recommends reducing growth rate"
+          - "Identifies no errors, recommends 'urgent remediation'"
+          - "Analysis discusses margins, recommendation addresses working capital"
+      2:
+        label: "Weak Connection"
+        description: "Some relationship exists but logical gaps are evident"
+        examples:
+          - "Correct observation, but recommendation overshoots the finding"
+          - "Valid concern, but proposed action only partially addresses it"
+          - "Evidence points one direction, recommendation hedges excessively"
+      3:
+        label: "Reasonable Connection"
+        description: "Logic is followable but not fully explicit"
+        examples:
+          - "Reader can infer the connection with effort"
+          - "Some intermediary reasoning steps are implicit"
+          - "Action addresses the finding but scope is imprecise"
+      4:
+        label: "Clear Connection"
+        description: "Explicit logical chain from evidence to action"
+        examples:
+          - "Each recommendation traces to specific finding"
+          - "Reasoning steps are documented and verifiable"
+          - "Action scope matches finding scope"
+      5:
+        label: "Rigorous Traceability"
+        description: "Complete audit trail with explicit logical operators"
+        examples:
+          - "'Because X was observed, and X implies Y risk, action Z is recommended'"
+          - "Decision tree logic explicitly stated"
+          - "Counterfactual reasoning included ('If not X, would recommend Y')"
+
+  uncertainty_calibration:
+    description: |
+      Does the model appropriately express confidence levels?
+      Are hedges used where warranted and absent where certainty is justified?
+    scale:
+      1:
+        label: "Severely Miscalibrated"
+        description: "Confidence expression inversely correlated with actual certainty"
+        examples:
+          - "States definitively what is actually uncertain"
+          - "Hedges excessively on clear-cut issues"
+          - "'Definitely an error' when formula is correct"
+      2:
+        label: "Poorly Calibrated"
+        description: "Frequent confidence-certainty mismatches"
+        examples:
+          - "Overconfident on judgment calls, underconfident on facts"
+          - "Uniform confidence regardless of evidence strength"
+          - "Missing hedges on model-dependent conclusions"
+      3:
+        label: "Adequately Calibrated"
+        description: "Generally appropriate confidence with some exceptions"
+        examples:
+          - "Major uncertainties flagged, minor ones sometimes missed"
+          - "Confidence levels reasonable but not precise"
+          - "Appropriate hedging on most subjective assessments"
+      4:
+        label: "Well-Calibrated"
+        description: "Confidence expression matches evidence quality"
+        examples:
+          - "Clear distinction between verified facts and inferences"
+          - "Hedging language proportional to uncertainty"
+          - "Explicit confidence levels for key conclusions"
+      5:
+        label: "Precisely Calibrated"
+        description: "Sophisticated uncertainty quantification"
+        examples:
+          - "Probability-weighted statements where appropriate"
+          - "Explicit discussion of confidence intervals"
+          - "Clear separation of model uncertainty vs. parameter uncertainty"
+
+  causal_claim_validity:
+    description: |
+      When the LLM makes causal claims, are they supported by the evidence,
+      or does it conflate correlation with causation?
+    scale:
+      1:
+        label: "Fabricated Causation"
+        description: "Causal claims have no evidentiary basis"
+        examples:
+          - "'Revenue growth caused margin expansion' when both are inputs"
+          - "Attributes formula error to 'analyst intent' without evidence"
+          - "Invents causal mechanism not present in model structure"
+      2:
+        label: "Overstated Causation"
+        description: "Causal language used for correlational relationships"
+        examples:
+          - "Treats concurrent changes as cause-and-effect"
+          - "Assumes direction of causation without evidence"
+          - "Ignores common-cause explanations"
+      3:
+        label: "Cautious Causation"
+        description: "Causal claims present but appropriately hedged"
+        examples:
+          - "Uses 'associated with' rather than 'causes' for uncertain relationships"
+          - "Notes limitations of causal inference from model structure"
+          - "Distinguishes mechanical linkage from economic causation"
+      4:
+        label: "Precise Causation"
+        description: "Causal claims well-supported and appropriately qualified"
+        examples:
+          - "Clearly distinguishes model mechanics from economic relationships"
+          - "Causal claims tied to explicit formula dependencies"
+          - "Alternative explanations acknowledged where relevant"
+      5:
+        label: "Rigorous Causal Reasoning"
+        description: "Sophisticated treatment of causation with explicit methodology"
+        examples:
+          - "Distinguishes definitional, mechanical, and economic causation"
+          - "Uses model structure to support directional claims only where valid"
+          - "Explicitly identifies where causal inference is and isn't possible"
+
+  evidence_grounding:
+    description: |
+      Are claims grounded in observable evidence from the model,
+      or does the LLM hallucinate supporting facts?
+    scale:
+      1:
+        label: "Ungrounded"
+        description: "Major claims lack any evidentiary basis"
+        examples:
+          - "References cells or sheets that don't exist"
+          - "Attributes values to formulas that differ from actual content"
+          - "Invents data points not present in the model"
+      2:
+        label: "Poorly Grounded"
+        description: "Some claims verifiable, others unsupported"
+        examples:
+          - "Correct cell references but mischaracterized content"
+          - "Real data cited but conclusions unsupported by it"
+          - "Mix of accurate and fabricated observations"
+      3:
+        label: "Partially Grounded"
+        description: "Most claims verifiable with some gaps"
+        examples:
+          - "Key claims well-supported, minor claims less so"
+          - "Evidence cited but not always sufficient for claim strength"
+          - "Occasional inference stated as observation"
+      4:
+        label: "Well-Grounded"
+        description: "Claims consistently tied to verifiable evidence"
+        examples:
+          - "Specific cell references for factual claims"
+          - "Clear distinction between observations and inferences"
+          - "Evidence sufficient for stated confidence level"
+      5:
+        label: "Rigorously Grounded"
+        description: "Complete evidence chain with verification guidance"
+        examples:
+          - "Every factual claim includes verification method"
+          - "Explicit links between evidence and conclusion strength"
+          - "Counter-evidence acknowledged and addressed"
+
+  explanation_completeness:
+    description: |
+      Does the explanation cover all materially relevant factors,
+      or does it selectively present a biased picture?
+    scale:
+      1:
+        label: "Severely Incomplete"
+        description: "Critical factors omitted, distorting the picture"
+        examples:
+          - "Ignores major balance sheet discrepancy while flagging minor issues"
+          - "Highlights single concern while missing systematic patterns"
+          - "Omits context that would change interpretation"
+      2:
+        label: "Notably Incomplete"
+        description: "Important factors missing, affecting reliability"
+        examples:
+          - "Key assumptions not surfaced"
+          - "Relevant comparisons not made"
+          - "Scope limitations not disclosed"
+      3:
+        label: "Adequately Complete"
+        description: "Major factors covered with some gaps"
+        examples:
+          - "Main issues addressed, secondary issues partially covered"
+          - "Key context provided, peripheral context limited"
+          - "Most material factors included"
+      4:
+        label: "Comprehensive"
+        description: "Thorough coverage of relevant factors"
+        examples:
+          - "Systematic treatment of all major issue categories"
+          - "Context sufficient for informed judgment"
+          - "Limitations and scope explicitly stated"
+      5:
+        label: "Exhaustive"
+        description: "Complete coverage with explicit scope boundaries"
+        examples:
+          - "All material factors addressed with explicit completeness claim"
+          - "Known unknowns explicitly identified"
+          - "Clear statement of what was and wasn't evaluated"
+
+evaluation_guidance:
+  aggregation_method: weighted_average
+  dimension_weights:
+    signal_action_consistency: 0.25
+    uncertainty_calibration: 0.20
+    causal_claim_validity: 0.20
+    evidence_grounding: 0.20
+    explanation_completeness: 0.15
+
+  minimum_acceptable_score: 3.0
+  excellence_threshold: 4.5
+
+  red_flags:
+    - Any score of 1 on evidence_grounding (indicates hallucination)
+    - Score of 1-2 on signal_action_consistency (reasoning breakdown)
+    - Causal claims scored 1-2 combined with confidence indicators scored 4-5
+
+  notes: |
+    - Evidence grounding failures are particularly serious as they indicate hallucination
+    - Signal-action consistency is the core measure of reasoning quality
+    - Watch for "confident hallucination" pattern: high apparent confidence, low grounding
+    - Document specific examples of both strong and weak reasoning
