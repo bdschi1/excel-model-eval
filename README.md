@@ -211,5 +211,13 @@ The model is used as an analysis and explanation component; it does not execute 
 
 The same architecture (deterministic core + scoped LLM layer + human review + rubrics) can be adapted to other domains such as compliance, healthcare, cybersecurity, operations, and policy analysis, as discussed in `docs/transferability.md`.
 
+---
 
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
+
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![NetworkX](https://img.shields.io/badge/NetworkX-4C9A2A?style=flat)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat&logo=pydantic&logoColor=white)
+![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=flat&logo=anthropic&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)
 
