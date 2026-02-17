@@ -7,6 +7,7 @@ streamlit>=1.30.0
 plotly>=5.18.0
 fpdf>=1.7.2
 xlsxwriter>=3.1.9
+pydantic>=2.5.0
 
 # Optional: LLM Integration (uncomment to enable AI analysis)
 # anthropic>=0.18.0
