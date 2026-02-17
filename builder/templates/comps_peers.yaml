@@ -1,0 +1,34 @@
+sectors:
+  Technology:
+    mega_cap: [AAPL, MSFT, GOOGL, META, AMZN]
+    large_cap: [CRM, ADBE, NOW, INTU]
+  Healthcare:
+    mega_cap: [JNJ, UNH, LLY, PFE, ABBV]
+    large_cap: [TMO, ABT, AMGN, BMY]
+  Financial Services:
+    mega_cap: [JPM, BAC, V, MA, GS]
+    large_cap: [MS, BLK, SCHW, CME]
+  Consumer Staples:
+    mega_cap: [PG, KO, PEP, WMT, COST]
+    large_cap: [MDLZ, CL, GIS, KHC]
+  Consumer Discretionary:
+    mega_cap: [TSLA, HD, MCD, NKE, SBUX]
+    large_cap: [TJX, LOW, BKNG, CMG]
+  Industrials:
+    mega_cap: [GE, CAT, HON, UNP, RTX]
+    large_cap: [DE, LMT, NOC, MMM]
+  Energy:
+    mega_cap: [XOM, CVX, COP, SLB, EOG]
+    large_cap: [MPC, PSX, VLO, OXY]
+  Real Estate:
+    mega_cap: [AMT, PLD, CCI, EQIX, SPG]
+    large_cap: [PSA, O, WELL, DLR]
+  Utilities:
+    mega_cap: [NEE, DUK, SO, D, AEP]
+    large_cap: [SRE, EXC, XEL, WEC]
+  Materials:
+    mega_cap: [LIN, APD, SHW, ECL, FCX]
+    large_cap: [NEM, NUE, DOW, DD]
+  Communication Services:
+    mega_cap: [GOOGL, META, NFLX, DIS, CMCSA]
+    large_cap: [TMUS, VZ, T, CHTR]

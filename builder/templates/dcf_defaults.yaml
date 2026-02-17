@@ -1,0 +1,56 @@
+sectors:
+  Technology:
+    wacc: 0.10
+    terminal_growth: 0.025
+    ebitda_margin_range: [0.15, 0.40]
+    capex_pct: 0.05
+  Healthcare:
+    wacc: 0.095
+    terminal_growth: 0.025
+    ebitda_margin_range: [0.15, 0.35]
+    capex_pct: 0.04
+  Financial Services:
+    wacc: 0.10
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.20, 0.45]
+    capex_pct: 0.03
+  Consumer Staples:
+    wacc: 0.075
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.12, 0.25]
+    capex_pct: 0.04
+  Consumer Discretionary:
+    wacc: 0.09
+    terminal_growth: 0.025
+    ebitda_margin_range: [0.10, 0.25]
+    capex_pct: 0.05
+  Industrials:
+    wacc: 0.085
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.12, 0.22]
+    capex_pct: 0.06
+  Energy:
+    wacc: 0.10
+    terminal_growth: 0.015
+    ebitda_margin_range: [0.20, 0.45]
+    capex_pct: 0.10
+  Real Estate:
+    wacc: 0.075
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.30, 0.60]
+    capex_pct: 0.03
+  Utilities:
+    wacc: 0.065
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.25, 0.45]
+    capex_pct: 0.08
+  Materials:
+    wacc: 0.085
+    terminal_growth: 0.02
+    ebitda_margin_range: [0.15, 0.30]
+    capex_pct: 0.06
+  Communication Services:
+    wacc: 0.09
+    terminal_growth: 0.025
+    ebitda_margin_range: [0.20, 0.40]
+    capex_pct: 0.07
