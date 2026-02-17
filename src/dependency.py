@@ -1,7 +1,7 @@
 import networkx as nx
 import pandas as pd
 from openpyxl.formula.tokenizer import Tokenizer, Token
-from openpyxl.utils import coordinate_to_tuple, get_column_letter
+from openpyxl.utils import get_column_letter
 from colorama import Fore, Style
 
 class DependencyEngine:

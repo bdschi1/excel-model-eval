@@ -8,11 +8,9 @@ Includes intentional issues for the auditor to detect:
 - External link reference (simulated)
 """
 
-import openpyxl
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, NamedStyle
+from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.utils.dataframe import dataframe_to_rows
 import os
 
 # --- STYLE DEFINITIONS ---

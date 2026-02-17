@@ -12,7 +12,6 @@ The LLM's role is strictly bounded:
 """
 
 import os
-import json
 from typing import Optional
 
 # API clients - imported conditionally
