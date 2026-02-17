@@ -3,7 +3,6 @@ import os
 import csv
 from datetime import datetime
 from fpdf import FPDF
-import xlsxwriter
 
 class ReportGenerator:
     """

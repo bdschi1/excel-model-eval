@@ -45,13 +45,13 @@ class ModelIngestor:
 
         try:
             # 1. Load Values (Numerical Layer)
-            print(f"    > Loading Numerical Layer (Values)...")
+            print("    > Loading Numerical Layer (Values)...")
             self.wb_values = openpyxl.load_workbook(
                 self.file_path, data_only=True, read_only=False, keep_vba=False
             )
             
             # 2. Load Logic (Formula Layer)
-            print(f"    > Loading Logic Layer (Formulas)...")
+            print("    > Loading Logic Layer (Formulas)...")
             self.wb_formulas = openpyxl.load_workbook(
                 self.file_path, data_only=False, read_only=False, keep_vba=False
             )
