@@ -211,6 +211,14 @@ The model is used as an analysis and explanation component; it does not execute 
 
 The same architecture (deterministic core + scoped LLM layer + human review + rubrics) can be adapted to other domains such as compliance, healthcare, cybersecurity, operations, and policy analysis, as discussed in `docs/transferability.md`.
 
+## Related Work
+
+This evaluation tool draws on research in financial reasoning, model auditing, and rubric-based evaluation:
+
+- **FinanceQA** (Mateega et al., 2025) — Benchmark demonstrating that frontier LLMs fail ~60% of realistic financial analysis tasks, particularly hand-spreading (independent recalculation from primary sources) and assumption-based questions. Validates the core premise that Excel model auditing requires rigorous evaluation. [arXiv:2501.18062](https://arxiv.org/abs/2501.18062)
+- **PRBench** (Akyurek et al., 2025) — 19,356 expert-curated binary criteria for professional reasoning evaluation. Informs our rubric-based grading methodology with weighted binary criteria across financial accuracy dimensions. [arXiv:2511.11562](https://arxiv.org/abs/2511.11562)
+- **Fin-o1** (Qian et al., 2025) — First open-source financial reasoning models showing that domain-specific chain-of-thought training dramatically improves structured financial calculation accuracy. Relevant to evaluating LLM capability on formula auditing tasks. [arXiv:2502.08127](https://arxiv.org/abs/2502.08127)
+
 ---
 
 ![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
