@@ -40,9 +40,10 @@ def main():
 
     # --- PHASE IV: REPORTING ---
     # Generate the final output
-    reporter = ReportGenerator(issues, structure_stats)
-    reporter.print_console_report()
-    reporter.save_report("pep_model_audit_results.txt")
+    reporter = ReportGenerator(TARGET_FILE, issues, ingestor, dependency_engine)
+    reporter.generate_pdf()
+    reporter.generate_excel()
+    reporter.update_log()
 
 if __name__ == "__main__":
     main()
