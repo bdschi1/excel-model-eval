@@ -1,17 +1,28 @@
 # Hedge Fund Excel Model Auditor
 
-A tool for structural analysis of institutional Excel‑based financial models.
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![NetworkX](https://img.shields.io/badge/NetworkX-4C9A2A?style=flat)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat&logo=pydantic&logoColor=white)
+![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=flat&logo=anthropic&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)
 
-The application ingests Excel workbooks as **Directed Acyclic Graphs (DAGs)**, mapping the flow of data from assumptions to valuation and highlighting structural issues in the model.
+A structural audit tool for Excel-based financial models. It reads an Excel workbook, maps every cell and formula into a dependency graph, runs deterministic checks for common modeling errors (hard-coded plugs, broken references, balance sheet imbalances), and produces a PDF memo and Excel report of findings. An optional LLM layer can generate narrative summaries — but the core audit is purely rule-based and does not require any API keys.
 
-
-
-### Quick start
+## Quick Start
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+
+# Streamlit dashboard
 streamlit run app.py
 # Upload sample_models/BOBWEIR_Model.xlsx to test
+
+# CLI
+python main.py                                    # runs against sample model
+python main.py path/to/your_model.xlsx            # runs against any model
 ```
 
 ### Optional LLM analysis
@@ -22,73 +33,50 @@ cp .env.example .env
 # Edit .env and add your API key
 ```
 
-***
+---
 
-## Features
+## How It Works
 
-- **Dual‑state ingestion**  
-  Loads models in two parallel states: values (for numerical checks) and formulas (for dependency tracing).
+The audit runs in four phases:
 
-- **Dependency graph engine**  
-  Uses `networkx` to represent each cell as a node, enabling detection of circular references and disconnected calculation chains.
+```
+Excel file → Ingestion → Dependency Graph → Audit Checks → PDF/Excel Report
+               (dual-state:        (networkx DAG)      (deterministic      (complexity score,
+                values +                                 heuristics)         issue catalog,
+                formulas)                                                    remediation)
+```
 
-- **Audit checks**
-  - Hard‑coded entries in forecast periods (e.g., constant growth rates in formula rows).
-  - Balance sheet consistency $$(Assets - (Liabilities + Equity) = 0)$$.
-  - References to missing or external files (e.g., `C:/Users/Analyst/Desktop/Budget.xlsx`).
+1. **Ingestion** — Loads the workbook twice: once for calculated values, once for raw formulas. This enables both numerical checks and logical tracing.
 
-- **Reporting artifacts**  
-  Produces a PDF memo and an Excel “datatape” summarizing identified issues.
+2. **Dependency graph** — Parses every formula into a directed graph using networkx. Each cell is a node; each reference is an edge. This reveals circular references, orphaned cells, and cross-sheet data flows.
 
-- **Complexity scoring**  
-  Assigns a 1–5 complexity score using graph topology and formula density.
+3. **Audit checks** — Three core checks run against the graph and values:
+   - **Hard-coded plugs** — Rows where most cells are formulas but some projection-period cells are constants (analysts overriding the model).
+   - **Balance sheet integrity** — Checks that Assets = Liabilities + Equity across all projection periods (tolerance: ±$1).
+   - **Broken/external references** — Detects `#REF!`, `#NAME?`, `#DIV/0!`, and links to external files.
 
-- **LLM‑assisted summaries (optional)**  
-  Uses Claude or GPT‑4 to generate narrative summaries of findings, with prompts constrained to exclude investment advice.
+4. **Reporting** — Produces a complexity score (1–5 based on sheet count, formula density, and interdependency), a PDF memo, and an Excel datatape with all findings.
 
-***
+### LLM layer (optional)
 
-## Installation
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   Audit Engine   │ --> │   LLM Analyzer   │ --> │  Human Review    │
+│ (Deterministic)  │     │   (Narrative)    │     │  (Final Review)  │
+└──────────────────┘     └──────────────────┘     └──────────────────┘
+        CONTROL               REASONING               DECISION
+```
 
-1. Clone the repository:
+The LLM receives audit findings and produces narrative summaries. It is constrained at the prompt level:
 
-   ```bash
-   git clone https://github.com/your-username/excel-model-eval.git
-   cd excel-model-eval
-   ```
+- **Allowed**: explain findings, prioritize by materiality, suggest remediation, reference specific cells.
+- **Disallowed**: investment recommendations, valuation opinions, price targets, data invention.
 
-2. Install dependencies:
+---
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Sample Model
 
-***
-
-## Usage
-
-1. Launch the dashboard:
-
-   ```bash
-   streamlit run app.py
-   ```
-
-2. Upload a model:
-   - Supports `.xlsx` and `.xlsm` for formula analysis.
-   - CSV files are supported for value inspection only.
-   - Example: upload `sample_models/BOBWEIR_Model.xlsx` for a preconfigured test case.
-
-3. Review outputs:
-   - Inspect the complexity score and identified issues in the UI.
-   - Download the PDF memo and Excel datatape from the sidebar.
-
-***
-
-## Sample model: BOBWEIR Pharmaceuticals
-
-The repository includes a sample financial model for testing:
-
-**`sample_models/BOBWEIR_Model.xlsx`**
+The repo includes a synthetic test case: **BOBWEIR Pharmaceuticals** (`sample_models/BOBWEIR_Model.xlsx`).
 
 | Sheet | Contents |
 |-------|----------|
@@ -100,26 +88,54 @@ The repository includes a sample financial model for testing:
 | CF | Cash flow statement |
 | DCF | DCF schedule and terminal value |
 
-Company profile (synthetic example):
+Intentional issues for testing: a hard-coded revenue plug (Revenue sheet, Neurex 2025E) and full formula linkages for dependency tracing. Regenerate with `python scripts/create_sample_model.py`.
 
-- Specialty pharma focused on rare diseases and oncology  
-- Revenue split across six products (Neurex, Oncovir, Hemaguard, Cardioshield, Dermaclear, Respiron)  
-- Projection period: 2024E–2028E  
+---
 
-The model includes intentional issues for testing:
+## Financial Model Builder
 
-- A hard‑coded revenue plug in the projection period (Revenue sheet, Neurex 2025E).  
-- Full formula linkages for dependency tracing.
+The `builder/` module is an independent financial modeling library included in this repo for convenience. It does not interact with the audit engine.
 
-To regenerate the sample:
+It provides programmatic construction of:
+- **DCF models** — scenario-weighted discounted cash flow with sensitivity tables
+- **Comparable company analysis** — peer selection and implied valuation
+- **Operating models** — revenue/cost projections with flag detection
 
-```bash
-python scripts/create_sample_model.py
-```
+Each builder uses Pydantic for input validation and produces structured outputs with markdown reports. See `examples/saas_dcf_walkthrough.py` for usage.
 
-***
+---
 
-## Project structure
+## Evaluation Framework
+
+### Rubrics (`eval/llm_rubrics/`)
+
+YAML-based rubrics for grading LLM audit narratives:
+
+- `safety_and_scope.yaml` — scope adherence, hallucination risk
+- `strategy_quality.yaml` — plausibility and proportionality of recommendations
+- `reasoning_fidelity.yaml` — evidence grounding, logical consistency, uncertainty calibration
+
+### Failure modes (`docs/failure_modes.md`)
+
+Catalog of 10 LLM failure patterns with detection strategies: narrative overfitting, regime anchoring, false confidence amplification, explanation-action divergence, scope creep, hallucinated causation, severity inflation, and others.
+
+### Human review (`human_review/`)
+
+Reviewer guidelines and sample reviews (good / borderline / failed outputs) for calibrating human evaluators.
+
+### Trainer tasks (`trainer_tasks/`)
+
+Exercises for AI trainer / RLHF evaluation: grade outputs on rubrics, identify failure modes, propose prompt or policy fixes.
+
+---
+
+## Transferability
+
+The architecture (deterministic core → scoped LLM layer → human review → rubrics) maps to other domains. See `docs/transferability.md` for patterns in compliance, clinical decision support, fraud detection, and cybersecurity.
+
+---
+
+## Project Structure
 
 ```text
 excel-model-eval/
@@ -129,103 +145,46 @@ excel-model-eval/
 │   ├── auditor.py             # Heuristic checks and issue catalog
 │   ├── reporting.py           # PDF/Excel report generation and scoring
 │   └── llm_analyzer.py        # Optional LLM integration
+├── builder/                   # Financial model builder (independent)
+│   ├── dcf_builder.py         # DCF valuation engine
+│   ├── comps_builder.py       # Comparable company analysis
+│   ├── operating_model.py     # Revenue/cost projections
+│   ├── assumptions.py         # Pydantic input schema
+│   ├── validators.py          # Business logic checks
+│   └── outputs.py             # Result data structures
 ├── eval/                      # LLM evaluation framework
 │   └── llm_rubrics/           # YAML rubrics for grading LLM outputs
 ├── human_review/              # Human-in-the-loop materials
-│   ├── reviewer_guidelines.md
-│   └── sample_reviews/
-├── trainer_tasks/             # Evaluation exercises (AI trainer-style tasks)
+├── trainer_tasks/             # Evaluation exercises
 ├── docs/
-│   ├── failure_modes.md       # Catalog of LLM failure patterns
-│   └── transferability.md     # Notes on cross-domain use
+│   ├── failure_modes.md       # LLM failure pattern catalog
+│   └── transferability.md     # Cross-domain architecture mapping
 ├── sample_models/
 │   └── BOBWEIR_Model.xlsx
 ├── scripts/
 │   └── create_sample_model.py
 ├── app.py                     # Streamlit frontend
+├── main.py                    # CLI entry point
 ├── .env.example               # Template for API keys
-├── data/                      # User models (gitignored)
-├── RESULTS/                   # Generated reports (gitignored)
 └── requirements.txt
 ```
 
-***
+---
 
-## LLM integration architecture
+## Design Principles
 
-The optional LLM module (`src/llm_analyzer.py`) adds a structured analysis layer on top of the deterministic audit engine:
-
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   Audit Engine   │ --> │   LLM Analyzer   │ --> │  Human Review    │
-│ (Deterministic)  │     │   (Narrative)    │     │  (Final Review)  │
-└──────────────────┘     └──────────────────┘     └──────────────────┘
-        CONTROL               REASONING               DECISION
-```
-
-- Audit engine: graph analysis, issue detection, severity calculations.  
-- LLM analyzer: text summaries, grouping and prioritization of issues, explanations.  
-- Human review: verification of claims and decisions about any downstream actions.
-
-### Prompt‑level safety constraints
-
-The LLM is configured to:
-
-- **Allowed**: explain findings, order issues by materiality, suggest remediation steps, express uncertainty, reference specific cells.  
-- **Disallowed**: investment recommendations, valuation opinions, price targets, data invention, business strategy advice.
-
-The model is used as an analysis and explanation component; it does not execute changes or interact with external systems.
-
-
-### Design principles
-
-| Principle | Implementation in this repo |
-|----------|-----------------------------|
-| Separate reasoning from control | LLM produces text analyses; code performs audits and report generation |
+| Principle | Implementation |
+|-----------|---------------|
+| Separate reasoning from control | LLM produces text; code performs audits and report generation |
 | Constrained guidance | Prompts enforce scope limits and evidence referencing |
-| Evaluation of non‑numeric outputs | YAML rubrics and human review guidelines |
-| Failure‑mode awareness | Documented patterns and targeted test cases |
-| Preference for interpretability | Graph‑based checks and explicit evidence paths |
-
-### Evaluation and trainer assets
-
-- **Rubrics (`eval/llm_rubrics/`)**  
-  - `strategy_quality.yaml`: plausibility and proportionality of proposed actions.  
-  - `reasoning_fidelity.yaml`: alignment between evidence and conclusions, uncertainty handling.  
-  - `safety_and_scope.yaml`: scope adherence and hallucination risk.
-
-- **Human review (`human_review/`)**  
-  - Reviewer guidelines defining process and scoring criteria.  
-  - Sample reviews illustrating “good”, “borderline”, and “failed” outputs.
-
-- **Failure modes (`docs/failure_modes.md`)**  
-  - Examples: narrative overfitting, regime anchoring, unwarranted confidence.  
-  - Detection strategies and mitigation options.
-
-- **Trainer tasks (`trainer_tasks/`)**  
-  - Exercises where a reviewer grades outputs, identifies failure modes, and proposes prompt or policy changes (suitable as AI trainer / RLHF evaluation tasks).
-
-***
-
-## Transferability
-
-The same architecture (deterministic core + scoped LLM layer + human review + rubrics) can be adapted to other domains such as compliance, healthcare, cybersecurity, operations, and policy analysis, as discussed in `docs/transferability.md`.
-
-## Related Work
-
-This evaluation tool draws on research in financial reasoning, model auditing, and rubric-based evaluation:
-
-- **FinanceQA** (Mateega et al., 2025) — Benchmark demonstrating that frontier LLMs fail ~60% of realistic financial analysis tasks, particularly hand-spreading (independent recalculation from primary sources) and assumption-based questions. Validates the core premise that Excel model auditing requires rigorous evaluation. [arXiv:2501.18062](https://arxiv.org/abs/2501.18062)
-- **PRBench** (Akyurek et al., 2025) — 19,356 expert-curated binary criteria for professional reasoning evaluation. Informs our rubric-based grading methodology with weighted binary criteria across financial accuracy dimensions. [arXiv:2511.11562](https://arxiv.org/abs/2511.11562)
-- **Fin-o1** (Qian et al., 2025) — First open-source financial reasoning models showing that domain-specific chain-of-thought training dramatically improves structured financial calculation accuracy. Relevant to evaluating LLM capability on formula auditing tasks. [arXiv:2502.08127](https://arxiv.org/abs/2502.08127)
+| Evaluation of non-numeric outputs | YAML rubrics and human review guidelines |
+| Failure-mode awareness | Documented patterns and targeted test cases |
+| Preference for interpretability | Graph-based checks and explicit evidence paths |
 
 ---
 
-![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
+## Related Work
 
-![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
-![NetworkX](https://img.shields.io/badge/NetworkX-4C9A2A?style=flat)
-![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat&logo=pydantic&logoColor=white)
-![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=flat&logo=anthropic&logoColor=white)
-![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)
-
+- **FinanceQA** (Mateega et al., 2025) — Benchmark showing frontier LLMs fail ~60% of realistic financial analysis tasks, particularly hand-spreading and assumption-based questions. [arXiv:2501.18062](https://arxiv.org/abs/2501.18062)
+- **PRBench** (Akyurek et al., 2025) — 19,356 expert-curated binary criteria for professional reasoning evaluation. Informs the rubric-based grading approach. [arXiv:2511.11562](https://arxiv.org/abs/2511.11562)
+- **Fin-o1** (Qian et al., 2025) — Domain-specific chain-of-thought training for financial reasoning. Relevant to evaluating LLM capability on formula auditing. [arXiv:2502.08127](https://arxiv.org/abs/2502.08127)
