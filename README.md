@@ -9,6 +9,8 @@
 
 A structural audit tool for Excel-based financial models. It reads an Excel workbook, maps every cell and formula into a dependency graph, runs deterministic checks for common modeling errors (hard-coded plugs, broken references, balance sheet imbalances), and produces a PDF memo and Excel report of findings. An optional LLM layer can generate narrative summaries — but the core audit is purely rule-based and does not require any API keys.
 
+This is a continually developed project. Features, interfaces, and test coverage expand over time as new research ideas and workflow needs arise.
+
 ## Quick Start
 
 ```bash
@@ -211,6 +213,20 @@ excel-model-eval/
 | Evaluation of non-numeric outputs | YAML rubrics and human review guidelines |
 | Failure-mode awareness | Documented patterns and targeted test cases |
 | Preference for interpretability | Graph-based checks and explicit evidence paths |
+
+---
+
+## Contributing
+
+Contributions welcome. Areas for improvement:
+- Additional audit check heuristics
+- Support for more workbook structures and formats
+- Enhanced LLM evaluation rubrics
+- Extended financial model builder capabilities
+
+## Status
+
+This project is under active, ongoing development. Core audit engine, dependency graph analysis, and reporting are stable. New audit checks, builder modules, and evaluation rubrics are added as needs arise.
 
 ---
 
