@@ -12,6 +12,12 @@ A structural audit tool for Excel-based financial models. It reads an Excel work
 ## Quick Start
 
 ```bash
+./run.sh            # setup + launch Streamlit app
+```
+
+Or manually:
+
+```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -24,6 +30,8 @@ streamlit run app.py
 python main.py                                    # runs against sample model
 python main.py path/to/your_model.xlsx            # runs against any model
 ```
+
+Run `./run.sh help` for all commands (`setup`, `app`, `cli`, `test`).
 
 ### Optional LLM analysis
 
@@ -40,10 +48,27 @@ cp .env.example .env
 The audit runs in four phases:
 
 ```
-Excel file → Ingestion → Dependency Graph → Audit Checks → PDF/Excel Report
-               (dual-state:        (networkx DAG)      (deterministic      (complexity score,
-                values +                                 heuristics)         issue catalog,
-                formulas)                                                    remediation)
+╔═══════════════════════════════════════════════════════════╗
+║                      EXCEL FILE                           ║
+║               .xlsx workbook upload                       ║
+╚═══════════════════════════════╤═══════════════════════════╝
+                                ▼
+┌─ PHASE 1 ── Ingestion ───────────────────────────────────┐
+│  Dual-state loading (values + formulas)                   │
+└───────────────────────────────┬───────────────────────────┘
+                                ▼
+┌─ PHASE 2 ── Dependency Graph ────────────────────────────┐
+│  networkx DAG of cell references and cross-sheet flows    │
+└───────────────────────────────┬───────────────────────────┘
+                                ▼
+┌─ PHASE 3 ── Audit Checks ───────────────────────────────┐
+│  Deterministic heuristics (plugs, BS integrity, refs)     │
+└───────────────────────────────┬───────────────────────────┘
+                                ▼
+┌─ PHASE 4 ── Reporting ──────────────────────────────────┐
+│  Complexity score, issue catalog, remediation             │
+│  (PDF memo + Excel datatape)                              │
+└──────────────────────────────────────────────────────────┘
 ```
 
 1. **Ingestion** — Loads the workbook twice: once for calculated values, once for raw formulas. This enables both numerical checks and logical tracing.
@@ -60,11 +85,17 @@ Excel file → Ingestion → Dependency Graph → Audit Checks → PDF/Excel Rep
 ### LLM layer (optional)
 
 ```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   Audit Engine   │ --> │   LLM Analyzer   │ --> │  Human Review    │
-│ (Deterministic)  │     │   (Narrative)    │     │  (Final Review)  │
-└──────────────────┘     └──────────────────┘     └──────────────────┘
-        CONTROL               REASONING               DECISION
+┌─ CONTROL ── Audit Engine ────────────────────────────────┐
+│  Deterministic checks (heuristic-based)                   │
+└───────────────────────────────┬───────────────────────────┘
+                                ▼
+┌─ REASONING ── LLM Analyzer ─────────────────────────────┐
+│  Narrative summary of findings (scoped, no advice)        │
+└───────────────────────────────┬───────────────────────────┘
+                                ▼
+┌─ DECISION ── Human Review ──────────────────────────────┐
+│  Final review of audit results + LLM narrative            │
+└──────────────────────────────────────────────────────────┘
 ```
 
 The LLM receives audit findings and produces narrative summaries. It is constrained at the prompt level:
