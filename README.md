@@ -11,6 +11,10 @@ A structural audit tool for Excel-based financial models. It reads an Excel work
 
 This is a continually developed project. Features, interfaces, and test coverage expand over time as new research ideas and workflow needs arise.
 
+**Key questions this project answers:**
+- *Does this Excel model have structural errors that could affect the output?*
+- *Where are the hard-coded overrides hiding in this workbook?*
+
 ## Quick Start
 
 ```bash
