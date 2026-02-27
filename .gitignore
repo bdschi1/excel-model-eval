@@ -101,3 +101,9 @@ b-notes.md
 TECHNICAL_DOCUMENTATION.md
 # Hardening additions
 *.tar.gz
+
+HOW_IT_WORKS.md
+
+# Hardening checklist additions
+.env.*
+!.env.example
