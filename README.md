@@ -222,15 +222,7 @@ excel-model-eval/
 
 ## Contributing
 
-Contributions welcome. Areas for improvement:
-- Additional audit check heuristics
-- Support for more workbook structures and formats
-- Enhanced LLM evaluation rubrics
-- Extended financial model builder capabilities
-
-## Status
-
-This project is under active, ongoing development. Core audit engine, dependency graph analysis, and reporting are stable. New audit checks, builder modules, and evaluation rubrics are added as needs arise.
+Under active development. Contributions welcome — areas for improvement include additional audit heuristics, workbook format support, LLM evaluation rubrics, and model builder capabilities.
 
 ---
 
@@ -239,3 +231,5 @@ This project is under active, ongoing development. Core audit engine, dependency
 - **FinanceQA** (Mateega et al., 2025) — Benchmark showing frontier LLMs fail ~60% of realistic financial analysis tasks, particularly hand-spreading and assumption-based questions. [arXiv:2501.18062](https://arxiv.org/abs/2501.18062)
 - **PRBench** (Akyurek et al., 2025) — 19,356 expert-curated binary criteria for professional reasoning evaluation. Informs the rubric-based grading approach. [arXiv:2511.11562](https://arxiv.org/abs/2511.11562)
 - **Fin-o1** (Qian et al., 2025) — Domain-specific chain-of-thought training for financial reasoning. Relevant to evaluating LLM capability on formula auditing. [arXiv:2502.08127](https://arxiv.org/abs/2502.08127)
+
+***Curiosity compounds. Rigor endures.***
