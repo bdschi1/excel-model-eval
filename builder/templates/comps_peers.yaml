@@ -1,6 +1,6 @@
 sectors:
   Technology:
-    mega_cap: [AAPL, MSFT, GOOGL, META, AMZN]
+    mega_cap: [AAPL, MSFT, AMZN, NVDA, AVGO]
     large_cap: [CRM, ADBE, NOW, INTU]
   Healthcare:
     mega_cap: [JNJ, UNH, LLY, PFE, ABBV]
