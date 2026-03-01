@@ -107,3 +107,12 @@ HOW_IT_WORKS.md
 # Hardening checklist additions
 .env.*
 !.env.example
+offload_temp/
+*.pt
+*.bin
+*.safetensors
+*.gguf
+hf_cache/
+outputs/
+logs/
+Desktop.ini
