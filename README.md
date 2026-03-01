@@ -88,7 +88,7 @@ The audit runs in four phases:
 
 4. **Reporting** — Produces a complexity score (1–5 based on sheet count, formula density, and interdependency), a PDF memo, and an Excel datatape with all findings.
 
-### LLM layer (optional)
+### LLM Layer (Optional)
 
 ```
 ┌─ CONTROL ── Audit Engine ────────────────────────────────┐
@@ -109,9 +109,7 @@ The LLM receives audit findings and produces narrative summaries. It is constrai
 - **Allowed**: explain findings, prioritize by materiality, suggest remediation, reference specific cells.
 - **Disallowed**: investment recommendations, valuation opinions, price targets, data invention.
 
----
-
-## Sample Model
+### Sample Model
 
 The repo includes a synthetic test case: **BOBWEIR Pharmaceuticals** (`sample_models/BOBWEIR_Model.xlsx`).
 
@@ -127,9 +125,7 @@ The repo includes a synthetic test case: **BOBWEIR Pharmaceuticals** (`sample_mo
 
 Intentional issues for testing: a hard-coded revenue plug (Revenue sheet, Neurex 2025E) and full formula linkages for dependency tracing. Regenerate with `python scripts/create_sample_model.py`.
 
----
-
-## Financial Model Builder
+### Financial Model Builder
 
 The `builder/` module is an independent financial modeling library included in this repo for convenience. It does not interact with the audit engine.
 
@@ -140,39 +136,33 @@ It provides programmatic construction of:
 
 Each builder uses Pydantic for input validation and produces structured outputs with markdown reports. See `examples/saas_dcf_walkthrough.py` for usage.
 
----
+### Evaluation Framework
 
-## Evaluation Framework
+**Rubrics** (`eval/llm_rubrics/`) — YAML-based rubrics for grading LLM audit narratives: `safety_and_scope.yaml` (scope adherence, hallucination risk), `strategy_quality.yaml` (plausibility and proportionality of recommendations), `reasoning_fidelity.yaml` (evidence grounding, logical consistency, uncertainty calibration).
 
-### Rubrics (`eval/llm_rubrics/`)
+**Failure modes** (`docs/failure_modes.md`) — Catalog of 10 LLM failure patterns with detection strategies: narrative overfitting, regime anchoring, false confidence amplification, explanation-action divergence, scope creep, hallucinated causation, severity inflation, and others.
 
-YAML-based rubrics for grading LLM audit narratives:
+**Human review** (`human_review/`) — Reviewer guidelines and sample reviews (good / borderline / failed outputs) for calibrating human evaluators.
 
-- `safety_and_scope.yaml` — scope adherence, hallucination risk
-- `strategy_quality.yaml` — plausibility and proportionality of recommendations
-- `reasoning_fidelity.yaml` — evidence grounding, logical consistency, uncertainty calibration
+**Trainer tasks** (`trainer_tasks/`) — Exercises for AI trainer / RLHF evaluation: grade outputs on rubrics, identify failure modes, propose prompt or policy fixes.
 
-### Failure modes (`docs/failure_modes.md`)
-
-Catalog of 10 LLM failure patterns with detection strategies: narrative overfitting, regime anchoring, false confidence amplification, explanation-action divergence, scope creep, hallucinated causation, severity inflation, and others.
-
-### Human review (`human_review/`)
-
-Reviewer guidelines and sample reviews (good / borderline / failed outputs) for calibrating human evaluators.
-
-### Trainer tasks (`trainer_tasks/`)
-
-Exercises for AI trainer / RLHF evaluation: grade outputs on rubrics, identify failure modes, propose prompt or policy fixes.
-
----
-
-## Transferability
+### Transferability
 
 The architecture (deterministic core → scoped LLM layer → human review → rubrics) maps to other domains. See `docs/transferability.md` for patterns in compliance, clinical decision support, fraud detection, and cybersecurity.
 
+### Design Principles
+
+| Principle | Implementation |
+|-----------|---------------|
+| Separate reasoning from control | LLM produces text; code performs audits and report generation |
+| Constrained guidance | Prompts enforce scope limits and evidence referencing |
+| Evaluation of non-numeric outputs | YAML rubrics and human review guidelines |
+| Failure-mode awareness | Documented patterns and targeted test cases |
+| Preference for interpretability | Graph-based checks and explicit evidence paths |
+
 ---
 
-## Project Structure
+## Architecture
 
 ```text
 excel-model-eval/
@@ -208,20 +198,20 @@ excel-model-eval/
 
 ---
 
-## Design Principles
+## Testing
 
-| Principle | Implementation |
-|-----------|---------------|
-| Separate reasoning from control | LLM produces text; code performs audits and report generation |
-| Constrained guidance | Prompts enforce scope limits and evidence referencing |
-| Evaluation of non-numeric outputs | YAML rubrics and human review guidelines |
-| Failure-mode awareness | Documented patterns and targeted test cases |
-| Preference for interpretability | Graph-based checks and explicit evidence paths |
+```bash
+pytest tests/ -v
+```
 
 ---
 
 ## Contributing
 
 Under active development. Contributions welcome — areas for improvement include additional audit heuristics, workbook format support, LLM evaluation rubrics, and model builder capabilities.
+
+## License
+
+MIT
 
 ***Curiosity compounds. Rigor endures.***
