@@ -1,4 +1,9 @@
-"""Bottom-up operating model builder."""
+"""Bottom-up operating model builder.
+
+Ground-truth reference: `references/fsp-skills/skills/3-statements/SKILL.md`
+(vendored from `anthropics/financial-services-plugins`, `financial-analysis`
+plugin). See `references/fsp-skills/INDEX.md` for the full mapping.
+"""
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

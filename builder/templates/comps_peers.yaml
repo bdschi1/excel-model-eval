@@ -32,3 +32,12 @@ sectors:
   Communication Services:
     mega_cap: [GOOGL, META, NFLX, DIS, CMCSA]
     large_cap: [TMUS, VZ, T, CHTR]
+
+# Optional ground-truth reference. Not loaded by code; cited for reviewers.
+fsp_reference:
+  skill: financial-analysis/comps-analysis
+  path: references/fsp-skills/skills/comps-analysis/SKILL.md
+  related_skill: financial-analysis/competitive-analysis
+  related_skill_path: references/fsp-skills/skills/competitive-analysis/SKILL.md
+  command: financial-analysis/comps
+  command_path: references/fsp-skills/commands/comps.md

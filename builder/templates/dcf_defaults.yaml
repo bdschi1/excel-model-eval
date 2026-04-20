@@ -54,3 +54,10 @@ sectors:
     terminal_growth: 0.025
     ebitda_margin_range: [0.20, 0.40]
     capex_pct: 0.07
+
+# Optional ground-truth reference. Not loaded by code; cited for reviewers.
+fsp_reference:
+  skill: financial-analysis/dcf-model
+  path: references/fsp-skills/skills/dcf-model/SKILL.md
+  command: financial-analysis/dcf
+  command_path: references/fsp-skills/commands/dcf.md

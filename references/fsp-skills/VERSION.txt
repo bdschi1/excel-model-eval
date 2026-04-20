@@ -1,0 +1,7 @@
+upstream_repo: anthropics/financial-services-plugins
+upstream_plugin: financial-analysis
+upstream_sha: c5947c8b0686da6fc9c2e4bd4dbdcb7fd4073ff6
+upstream_date: 2026-02-23
+vendored_on: 2026-04-20
+vendored_by: excel-model-eval (ModelLens)
+source_license: Apache-2.0

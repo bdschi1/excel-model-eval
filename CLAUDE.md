@@ -33,6 +33,7 @@ ruff check .
 - `src/llm_analyzer.py` -- Optional LLM integration (Anthropic/OpenAI) with prompt-level safety constraints
 - `app.py` -- Streamlit frontend for upload, visualization, and report download
 - `eval/llm_rubrics/` -- YAML rubrics for grading LLM narrative outputs (strategy quality, reasoning fidelity, safety/scope)
+- `references/fsp-skills/` -- vendored, read-only copy of the `financial-analysis` plugin from Anthropic's `financial-services-plugins` (Apache-2.0). Ground-truth reference material cited from rubrics and builder templates via optional `external_references:` / `fsp_reference:` YAML blocks. No runtime code loads these files. See `references/fsp-skills/INDEX.md` for the component-to-skill mapping and `NOTICE` for license; do not edit vendored content — re-vendor from upstream instead.
 
 ## Key Patterns
 

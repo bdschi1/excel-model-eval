@@ -1,4 +1,6 @@
-# Hedge Fund Excel Model Auditor
+<!-- excel-model-eval/README.md | Last updated: 2026-04-16 -->
+
+# ModelLens
 
 ![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
@@ -104,7 +106,7 @@ The audit runs in four phases:
 └──────────────────────────────────────────────────────────┘
 ```
 
-The LLM receives audit findings and produces narrative summaries. It is constrained at the prompt level:
+The LLM receives audit findings and produces narrative summaries. The AI judge (`eval/ai_judge.py`) supports an optional `thinking_budget` parameter for extended thinking, and LLM analyzer response parsing is thinking-block-safe (handles mixed thinking + text content blocks). System prompts are automatically cached via Anthropic's prompt caching API to reduce token costs on repeated calls. The LLM is constrained at the prompt level:
 
 - **Allowed**: explain findings, prioritize by materiality, suggest remediation, reference specific cells.
 - **Disallowed**: investment recommendations, valuation opinions, price targets, data invention.
@@ -160,6 +162,19 @@ The architecture (deterministic core → scoped LLM layer → human review → r
 | Failure-mode awareness | Documented patterns and targeted test cases |
 | Preference for interpretability | Graph-based checks and explicit evidence paths |
 
+## Policy
+
+The audit engine is deterministic; the LLM is optional and constrained.
+
+1. **Separate reasoning from control.** Code performs audits and produces reports; the LLM layer generates narrative summaries only -- it never replaces heuristic checks.
+2. **No investment advice, ever.** The LLM is prompt-constrained: allowed to explain findings and suggest remediation, disallowed from investment recommendations, valuation opinions, or price targets.
+3. **Graph-based interpretability.** Every finding traces to specific cells via a networkx dependency DAG -- no black-box conclusions.
+4. **Dual-state loading for correctness.** Workbooks are ingested as both values and formulas so numerical checks and dependency tracing each use the appropriate representation.
+5. **Failure-mode awareness built in.** Documented LLM failure patterns (narrative overfitting, false confidence amplification, hallucinated causation) have targeted detection strategies and test cases.
+6. **Human review is the final gate.** Audit results and LLM narratives are artifacts for human decision-making, not autonomous conclusions.
+
+The tool exists to structurally audit Excel financial models for hidden errors using deterministic graph analysis, with an optional scoped LLM layer that explains but never advises.
+
 ---
 
 ## Architecture
@@ -180,6 +195,7 @@ excel-model-eval/
 │   ├── validators.py          # Business logic checks
 │   └── outputs.py             # Result data structures
 ├── eval/                      # LLM evaluation framework
+│   ├── ai_judge.py            # LLM-as-judge scorer (optional thinking_budget for extended thinking)
 │   └── llm_rubrics/           # YAML rubrics for grading LLM outputs
 ├── human_review/              # Human-in-the-loop materials
 ├── trainer_tasks/             # Evaluation exercises
@@ -203,6 +219,27 @@ excel-model-eval/
 ```bash
 pytest tests/ -v
 ```
+
+---
+
+## Ground-truth references
+
+Evaluation rubrics and builder templates cite vendored content at
+[`references/fsp-skills/`](./references/fsp-skills/) — a verbatim copy of
+the `financial-analysis` plugin from Anthropic's
+[`financial-services-plugins`](https://github.com/anthropics/financial-services-plugins)
+repo (Apache-2.0). The content is read-only reference material used to
+anchor rubric expectations to widely-used financial-modeling conventions;
+no ModelLens code loads these files at runtime. See
+[`references/fsp-skills/INDEX.md`](./references/fsp-skills/INDEX.md) for
+the mapping of each ModelLens component to its cited skill(s) and
+[`NOTICE`](./references/fsp-skills/NOTICE) for license terms. Scores
+produced by ModelLens remain probabilistic — citing a plugin skill
+indicates reference material consulted, not a guarantee of compliance.
+
+Rubric YAMLs surface these citations via an optional `external_references:`
+top-level block; builder templates via an optional `fsp_reference:` block.
+Both blocks are advisory and can be omitted without affecting scoring.
 
 ---
 

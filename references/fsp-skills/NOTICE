@@ -1,0 +1,36 @@
+NOTICE
+======
+
+This directory (`references/fsp-skills/`) contains vendored content from:
+
+    Project:  financial-services-plugins
+    Owner:    Anthropic, PBC
+    Upstream: https://github.com/anthropics/financial-services-plugins
+    License:  Apache License, Version 2.0
+    Plugin:   financial-analysis
+    Commit:   c5947c8b0686da6fc9c2e4bd4dbdcb7fd4073ff6 (2026-02-23)
+
+The content under `skills/` and `commands/` is a verbatim copy of the
+`financial-analysis/skills/` and `financial-analysis/commands/` subdirectories
+from the upstream repository at the commit listed above. No modifications
+have been made to the vendored files. Byte-identity with upstream is
+verified via `diff -r` in `tests/test_fsp_references.py`.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use these files except in compliance with the License. You may obtain
+a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+Use in this repository
+----------------------
+
+ModelLens uses this vendored content only as ground-truth reference material
+for its evaluation rubrics. The content is not executed, loaded at runtime,
+or redistributed as part of any ModelLens deliverable.
