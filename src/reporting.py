@@ -1,8 +1,11 @@
-import pandas as pd
-import os
 import csv
+import os
 from datetime import datetime
+
+import pandas as pd
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
+
 
 class ReportGenerator:
     """
@@ -10,14 +13,15 @@ class ReportGenerator:
     Generates PDF memos, Excel datatapes, and calculates Complexity Scores.
     """
     def __init__(self, filename, issues, ingestor, dependency_engine):
-        self.filename = filename
+        self.filename = os.path.basename(filename).replace(os.sep, '_')
         self.issues = issues
         self.ingestor = ingestor
-        self.graph = dependency_engine.graph
+        self.graph = dependency_engine.graph if dependency_engine else None
         self.timestamp = datetime.now()
         
-        # Initialize Output Directory
-        self.results_dir = os.path.join(os.getcwd(), "RESULTS")
+        # Initialize Output Directory (project-relative, not cwd)
+        _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.results_dir = os.path.join(_project_root, "RESULTS")
         os.makedirs(self.results_dir, exist_ok=True)
         
         # Calculate Complexity
@@ -28,8 +32,8 @@ class ReportGenerator:
         Calculates a 1-5 Complexity Score based on graph topology.
         """
         sheet_count = len(self.ingestor.sheets_values)
-        node_count = self.graph.number_of_nodes()
-        edge_count = self.graph.number_of_edges()
+        node_count = self.graph.number_of_nodes() if self.graph else 0
+        edge_count = self.graph.number_of_edges() if self.graph else 0
         
         # Heuristic Scoring
         score = 1
@@ -56,31 +60,56 @@ class ReportGenerator:
         """Generates a professional PDF Memo."""
         pdf = FPDF()
         pdf.add_page()
-        
+
+        # Try to load a Unicode TTF font; fall back to core Helvetica
+        _FONT_NAME = "Helvetica"
+        _font_paths = []
+        try:
+            import matplotlib
+            _mpl_ttf = os.path.join(
+                matplotlib.get_data_path(), 'fonts', 'ttf', 'DejaVuSans.ttf')
+            _font_paths.append(_mpl_ttf)
+        except Exception:
+            pass
+        _font_paths.append(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         'fonts', 'DejaVuSans.ttf'))
+        for _fp in _font_paths:
+            if os.path.isfile(_fp):
+                try:
+                    pdf.add_font("DejaVu", "", _fp)
+                    _bold = _fp.replace("Sans.ttf", "Sans-Bold.ttf")
+                    pdf.add_font("DejaVu", "B",
+                                 _bold if os.path.isfile(_bold) else _fp)
+                    _FONT_NAME = "DejaVu"
+                except Exception:
+                    pass
+                break
+
         # Header
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "Hedge Fund Excel Model Audit Report", ln=True, align="C")
+        pdf.set_font(_FONT_NAME, "B", 16)
+        pdf.cell(0, 10, "ModelLens - Structural Audit Report", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
         pdf.line(10, 20, 200, 20)
         pdf.ln(10)
 
         # Meta Data
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 5, f"File Evaluated: {self.filename}", ln=True)
-        pdf.cell(0, 5, f"Date: {self.timestamp.strftime('%Y-%m-%d %H:%M')}", ln=True)
-        pdf.cell(0, 5, f"Complexity Score: {self.complexity_score}/5", ln=True)
-        pdf.cell(0, 5, f"Complexity Drivers: {self.complexity_rationale}", ln=True)
+        pdf.set_font(_FONT_NAME, "", 10)
+        pdf.cell(0, 5, f"File Evaluated: {self.filename}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, f"Date: {self.timestamp.strftime('%Y-%m-%d %H:%M')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, f"Complexity Score: {self.complexity_score}/5", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, f"Complexity Drivers: {self.complexity_rationale}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(5)
 
         # Executive Summary
-        pdf.set_font("Arial", "B", 12)
+        pdf.set_font(_FONT_NAME, "B", 12)
         pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, "Executive Summary", ln=True, fill=True)
+        pdf.cell(0, 10, "Executive Summary", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
         pdf.ln(2)
-        
+
         critical = [i for i in self.issues if i['severity'] == 'Critical']
         high = [i for i in self.issues if i['severity'] == 'High']
-        
-        pdf.set_font("Arial", "", 10)
+
+        pdf.set_font(_FONT_NAME, "", 10)
         summary_text = (
             f"The model was evaluated for structural integrity, logical consistency, and best practices. "
             f"We detected {len(critical)} Critical Errors and {len(high)} High Risk Warnings. "
@@ -90,36 +119,33 @@ class ReportGenerator:
         pdf.ln(5)
 
         # High Priority Issues
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Top Red Flags", ln=True, fill=True)
+        pdf.set_font(_FONT_NAME, "B", 12)
+        pdf.cell(0, 10, "Top Red Flags", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
         pdf.ln(2)
 
-        pdf.set_font("Arial", "", 9)
+        pdf.set_font(_FONT_NAME, "", 9)
         priority_issues = (critical + high)[:10]  # Show top 10 only
         
         if not priority_issues:
-            pdf.cell(0, 5, "No Critical or High severity issues detected.", ln=True)
+            pdf.cell(0, 5, "No Critical or High severity issues detected.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
         for issue in priority_issues:
             # Color code severity tag (Text based in PDF)
             severity_tag = f"[{issue['severity'].upper()}]"
-            pdf.set_font("Arial", "B", 9)
+            pdf.set_font(_FONT_NAME, "B", 9)
             pdf.cell(30, 5, severity_tag)
-            pdf.set_font("Arial", "", 9)
-            # Sanitise text to avoid unicode errors in FPDF (Latin-1 limitation)
-            safe_loc = str(issue['location']).encode('latin-1', 'replace').decode('latin-1')
-            safe_type = str(issue['type']).encode('latin-1', 'replace').decode('latin-1')
-            safe_detail = str(issue['detail']).encode('latin-1', 'replace').decode('latin-1')
+            pdf.set_font(_FONT_NAME, "", 9)
+            safe_loc = str(issue['location'])
+            safe_type = str(issue['type'])
+            safe_detail = str(issue['detail'])
             
-            pdf.cell(0, 5, f"{safe_type} @ {safe_loc}", ln=True)
+            pdf.cell(0, 5, f"{safe_type} @ {safe_loc}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.multi_cell(0, 5, f"   Detail: {safe_detail}")
             pdf.ln(2)
 
-        output_path = os.path.join(self.results_dir, f"Audit_Summary_{self.filename}.pdf")
-        try:
-            pdf.output(output_path)
-        except Exception as e:
-            print(f"PDF Generation Warning: {e}")
+        ts = self.timestamp.strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(self.results_dir, f"Audit_Summary_{self.filename}_{ts}.pdf")
+        pdf.output(output_path)
             
         return output_path
 
@@ -127,7 +153,8 @@ class ReportGenerator:
         """
         Generates an Excel file with grouped rows for large error lists.
         """
-        output_path = os.path.join(self.results_dir, f"Audit_Details_{self.filename}.xlsx")
+        ts = self.timestamp.strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(self.results_dir, f"Audit_Details_{self.filename}_{ts}.xlsx")
         
         # Convert issues to DataFrame
         df = pd.DataFrame(self.issues)
@@ -156,9 +183,11 @@ class ReportGenerator:
                 
                 # Format Headers
                 data_header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3', 'border': 1})
+                _COL_WIDTHS = [12, 20, 25, 50, 40, 40, 40]  # severity, type, location, detail, why, cause, fix
                 for col_num, value in enumerate(df_sorted.columns.values):
                     ws_data.write(0, col_num, value, data_header_fmt)
-                    ws_data.set_column(col_num, col_num, 25) # Widen columns
+                    width = _COL_WIDTHS[col_num] if col_num < len(_COL_WIDTHS) else 25
+                    ws_data.set_column(col_num, col_num, width)
 
                 # Logic to Group Rows (The "Dropdown" effect)
                 current_type = None
@@ -189,7 +218,7 @@ class ReportGenerator:
 
     def update_log(self):
         """Appends run details to a persistent CSV log."""
-        log_path = "audit_history.csv"
+        log_path = os.path.join(self.results_dir, "audit_history.csv")
         file_exists = os.path.isfile(log_path)
         
         with open(log_path, mode='a', newline='') as f:

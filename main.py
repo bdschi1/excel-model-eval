@@ -1,10 +1,81 @@
 import argparse
+import json
 import os
 import sys
 from src.ingestion import ModelIngestor
 from src.dependency import DependencyEngine
 from src.auditor import ModelAuditor
 from src.reporting import ReportGenerator
+
+_CI_MODEL = "claude-haiku-4-5-20251001"
+_CI_THRESHOLD_MAX_CRITICAL = 5
+_CRITICAL_SEVERITIES = {"High", "Critical"}
+
+
+def _run_ci_mode(file_path: str) -> None:
+    """Run CI quality gate on a single Excel model.
+
+    Uses Haiku for LLM analysis (when available), runs structural audit,
+    counts critical issues, outputs JSON to stdout, exits 0/1.
+    """
+    if not os.path.exists(file_path):
+        output = {
+            "ci_mode": True,
+            "model": _CI_MODEL,
+            "models_evaluated": 0,
+            "critical_issues_found": 0,
+            "pass": False,
+            "threshold_max_critical": _CI_THRESHOLD_MAX_CRITICAL,
+            "summary": f"CI FAIL — model file not found: {file_path}",
+            "error": f"File not found: {file_path}",
+        }
+        print(json.dumps(output, indent=2))
+        sys.exit(1)
+
+    print(f"CI mode: auditing {os.path.basename(file_path)} with {_CI_MODEL}...", file=sys.stderr)
+
+    ingestor = ModelIngestor(file_path)
+    if not ingestor.ingest():
+        output = {
+            "ci_mode": True,
+            "model": _CI_MODEL,
+            "models_evaluated": 0,
+            "critical_issues_found": 0,
+            "pass": False,
+            "threshold_max_critical": _CI_THRESHOLD_MAX_CRITICAL,
+            "summary": "CI FAIL — ingestion failed.",
+            "error": "Ingestion failed",
+        }
+        print(json.dumps(output, indent=2))
+        sys.exit(1)
+
+    dependency_engine = DependencyEngine(ingestor.sheets_formulas)
+    dependency_engine.build_graph()
+
+    auditor = ModelAuditor(ingestor, dependency_engine)
+    issues = auditor.run_all_checks()
+
+    critical_count = sum(
+        1 for issue in issues if issue.get("severity") in _CRITICAL_SEVERITIES
+    )
+    gate_passed = critical_count <= _CI_THRESHOLD_MAX_CRITICAL
+
+    status_str = "CI PASS" if gate_passed else "CI FAIL"
+    output = {
+        "ci_mode": True,
+        "model": _CI_MODEL,
+        "models_evaluated": 1,
+        "total_issues_found": len(issues),
+        "critical_issues_found": critical_count,
+        "pass": gate_passed,
+        "threshold_max_critical": _CI_THRESHOLD_MAX_CRITICAL,
+        "summary": (
+            f"1 model. {critical_count} critical issues. {status_str}."
+        ),
+    }
+
+    print(json.dumps(output, indent=2))
+    sys.exit(0 if gate_passed else 1)
 
 
 def main():
@@ -17,7 +88,21 @@ def main():
         default=os.path.join("sample_models", "BOBWEIR_Model.xlsx"),
         help="Path to Excel model (.xlsx or .xlsm). Defaults to sample_models/BOBWEIR_Model.xlsx",
     )
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        default=False,
+        help=(
+            "CI mode: audits sample model, uses Haiku for LLM analysis, "
+            "outputs JSON to stdout, exits 1 if critical issues exceed threshold."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.ci:
+        ci_file = args.file
+        _run_ci_mode(ci_file)
+        return
 
     file_path = args.file
     if not os.path.exists(file_path):
