@@ -45,6 +45,8 @@ addopts = "-v --tb=short"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["references/fsp-skills"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

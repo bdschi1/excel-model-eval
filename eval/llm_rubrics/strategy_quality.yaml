@@ -243,3 +243,21 @@ evaluation_guidance:
     - Document specific examples supporting each score
     - Consider domain context when applying economic plausibility criteria
     - Actionability scoring should account for intended audience expertise level
+
+external_references:
+  # Optional. Ground-truth reference material from the vendored
+  # `financial-analysis` plugin at `references/fsp-skills/`. Cited so
+  # reviewers can trace rubric expectations to canonical Wall Street
+  # conventions. Presence is advisory; no code reads this block.
+  - skill: financial-analysis/dcf-model
+    path: references/fsp-skills/skills/dcf-model/SKILL.md
+    applies_to: [economic_plausibility, actionability]
+    note: "DCF remediation guidance and assumption expectations."
+  - skill: financial-analysis/check-model
+    path: references/fsp-skills/skills/check-model/SKILL.md
+    applies_to: [actionability, internal_consistency, proportionality]
+    note: "Structural review and prioritization conventions."
+  - command: financial-analysis/debug-model
+    path: references/fsp-skills/commands/debug-model.md
+    applies_to: [actionability]
+    note: "Command-shape reference for actionable remediation steps."

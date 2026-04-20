@@ -304,3 +304,25 @@ evaluation_guidance:
     - Signal-action consistency is the core measure of reasoning quality
     - Watch for "confident hallucination" pattern: high apparent confidence, low grounding
     - Document specific examples of both strong and weak reasoning
+
+external_references:
+  # Optional. Ground-truth reference material from the vendored
+  # `financial-analysis` plugin at `references/fsp-skills/`. Cited so
+  # reviewers can trace rubric expectations to canonical financial-modeling
+  # conventions. Presence is advisory; no code reads this block.
+  - skill: financial-analysis/check-model
+    path: references/fsp-skills/skills/check-model/SKILL.md
+    applies_to: [signal_action_consistency, evidence_grounding, causal_claim_validity]
+    note: "Structural review conventions — what evidence should support which action."
+  - skill: financial-analysis/3-statements
+    path: references/fsp-skills/skills/3-statements/SKILL.md
+    applies_to: [causal_claim_validity, explanation_completeness]
+    note: "Canonical 3-statement linkages used to evaluate causal claims in analysis."
+  - command: financial-analysis/debug-model
+    path: references/fsp-skills/commands/debug-model.md
+    applies_to: [signal_action_consistency]
+    note: "Reference for evidence-to-action traceability."
+  - command: financial-analysis/3-statements
+    path: references/fsp-skills/commands/3-statements.md
+    applies_to: [explanation_completeness]
+    note: "Command shape used as a completeness reference."
