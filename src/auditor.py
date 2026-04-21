@@ -5,7 +5,41 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# --- Period classification regex (for EDGAR check) ---
+# Captures year and an optional A (actual) / E (estimate) suffix. Matches:
+#   - 4-digit: 2023, FY2023, FY 2023, 1999A, 2024E (range 1980-2039)
+#   - 2-digit with FY prefix: FY23, FY23A, FY 23 E (short forms)
+_PERIOD_RE = re.compile(
+    r"\b(?:FY\s*)?(19[89]\d|20[0-3]\d)\s*(A|E)?\b"
+    r"|\bFY\s*(\d{2})\s*(A|E)?\b",
+    re.IGNORECASE,
+)
+
+# Quarterly / interim-period headers that should NOT be classified as annual.
+_QUARTER_RE = re.compile(
+    r"\bQ[1-4]\b|\b[1-4]Q\b|Q[1-4]\s*\d|\d\s*Q[1-4]"
+    r"|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\w*\b"
+    r"|\b(?:h1|h2|1h|2h)\b",
+    re.IGNORECASE,
+)
+
 _DATA_SHEET_KEYWORDS = ("raw", "cache", "lookup", "reference", "archive", "_data", "data_", "source")
+
+# Row-label keywords that indicate a reconciliation / tie-out row rather than
+# a projection row. A literal sandwiched between formulas on such a row is
+# overwhelmingly a diagnostic figure (e.g. "Check: Assets - L&E = 0"), not a
+# hard-coded plug. Skipping these keeps the plug detector's false-positive
+# rate low on models with explicit balance-check rows.
+_PLUG_SKIP_KEYWORDS = (
+    "check",
+    "balance",
+    "total",
+    "subtotal",
+    "sum",
+    "audit",
+    "tieout",
+    "crosscheck",
+)
 
 # Balance sheet tolerance: 1 basis point of total assets (or $1 floor)
 _BS_TOLERANCE_BPS = 0.0001
@@ -150,6 +184,55 @@ def _is_numeric(val):
         return False
 
 
+# Sheet-level unit hints. Matched against top-N rows of each sheet so numeric
+# values can be scaled up to raw USD before EDGAR comparison.
+_UNIT_HINT_BILLIONS = re.compile(
+    r"(?:\(|\b|^)\s*(?:\$\s*)?(?:in\s+)?(?:us(?:d)?\s+)?billions?\b"
+    r"|\$?\s*bn\b|\$?\s*bns\b",
+    re.IGNORECASE,
+)
+_UNIT_HINT_MILLIONS = re.compile(
+    r"(?:\(|\b|^)\s*(?:\$\s*)?(?:in\s+)?(?:us(?:d)?\s+)?millions?\b"
+    r"|\$\s*mm\b|\$\s*mn\b|\busd\s*mm\b|\busd\s*mn\b|\$mm\b",
+    re.IGNORECASE,
+)
+_UNIT_HINT_THOUSANDS = re.compile(
+    r"(?:\(|\b|^)\s*(?:\$\s*)?(?:in\s+)?(?:us(?:d)?\s+)?thousands?\b"
+    r"|\$\s*000s?\b|\$000s?\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_sheet_scale(df, header_row_idx=None, max_probe=20):
+    """Return a USD-unit multiplier (1_000, 1_000_000, or 1_000_000_000) based
+    on explicit text hints in the top rows of the sheet. Returns None when no
+    hint is found — callers should treat values as already in raw USD and let
+    the validator's scale-mismatch heuristic catch off-by-1000 slips.
+
+    Search spans ``max_probe`` rows from row 0 through ``header_row_idx`` (or
+    ``max_probe``, whichever is larger).
+    """
+    if df is None or len(df) == 0:
+        return None
+    limit = max_probe
+    if header_row_idx is not None:
+        limit = max(limit, header_row_idx + 2)
+    limit = min(limit, len(df))
+    for r_idx in range(limit):
+        row = df.iloc[r_idx].tolist()
+        for v in row:
+            if v is None or pd.isna(v):
+                continue
+            s = str(v)
+            if _UNIT_HINT_BILLIONS.search(s):
+                return 1_000_000_000.0
+            if _UNIT_HINT_MILLIONS.search(s):
+                return 1_000_000.0
+            if _UNIT_HINT_THOUSANDS.search(s):
+                return 1_000.0
+    return None
+
+
 def _detect_label_cols(row_values):
     """Count consecutive non-numeric, non-formula cells from column 0.
 
@@ -183,12 +266,14 @@ class ModelAuditor:
     6. Dangling Outputs: Flags key metrics that are hard-coded instead of formula-driven.
     """
 
-    def __init__(self, ingestor, dependency_engine, hidden_sheets=None, audit_id=None):
+    def __init__(self, ingestor, dependency_engine, hidden_sheets=None, audit_id=None,
+                 ticker=None):
         self.ingestor = ingestor
         self.engine = dependency_engine
         self.graph = dependency_engine.graph if dependency_engine is not None else None
         self.hidden_sheets = hidden_sheets or set()
         self.audit_id = audit_id or ""
+        self.ticker = ticker
         self.issues = []
 
     def run_all_checks(self):
@@ -201,6 +286,8 @@ class ModelAuditor:
         self._check_circular_refs()
         self._check_unreferenced_inputs()
         self._check_dangling_outputs()
+        if self.ticker:
+            self.check_edgar(self.ticker)
 
         logger.info("[%s] Audit complete. Found %d issues.", self.audit_id, len(self.issues))
         return self.issues
@@ -286,6 +373,18 @@ class ModelAuditor:
 
                 # Auto-detect label columns for this row
                 label_cols = _detect_label_cols(full_row)
+
+                # Skip reconciliation / tie-out rows (check, balance, total,
+                # subtotal, sum, audit, tieout, cross-check). A literal
+                # between formulas on such a row is virtually always a
+                # diagnostic value, not a plug.
+                label_blob = " ".join(
+                    str(c).lower().replace("-", "").replace(" ", "")
+                    for c in full_row[:label_cols]
+                    if pd.notna(c)
+                )
+                if any(kw in label_blob for kw in _PLUG_SKIP_KEYWORDS):
+                    continue
 
                 # Get the data portion after labels
                 row_list = full_row[label_cols:]
@@ -524,3 +623,194 @@ class ModelAuditor:
                             findings.append(loc)
 
         return findings
+
+    # ------------------------------------------------------------------
+    # 7. EDGAR historical-value check (optional; requires ticker)
+    # ------------------------------------------------------------------
+
+    def _classify_period_columns(self, df, header_row_idx=None):
+        """Return {col_idx: (tag, year)} for each column whose header parses
+        as a year. tag is 'historical', 'forecast', or 'unknown'.
+
+        If ``header_row_idx`` is None, scans the first 10 rows for the one
+        with the most year-parseable cells (requires >=3 to accept). Sellside
+        models frequently put period labels below a title / unit banner row.
+        """
+        result = {}
+        if df is None or len(df) == 0:
+            return result
+        if header_row_idx is None:
+            header_row_idx = self._find_period_header_row(df)
+            if header_row_idx is None:
+                return result
+        header = df.iloc[header_row_idx].tolist()
+        current_year = pd.Timestamp.now().year
+        for col_idx, cell in enumerate(header):
+            if pd.isna(cell):
+                continue
+            text = str(cell)
+            # Skip quarterly, half-year, and month-stamped columns — EDGAR
+            # Core 6 values are annual (fp=FY) and comparisons would be off
+            # by a factor of 4 (or more) if a quarterly column sneaks in.
+            if _QUARTER_RE.search(text):
+                continue
+            m = _PERIOD_RE.search(text)
+            if not m:
+                continue
+            if m.group(1):
+                year = int(m.group(1))
+                suffix = (m.group(2) or "").upper()
+            else:
+                # 2-digit FYXX short form: interpret as 2000-2099
+                year = 2000 + int(m.group(3))
+                suffix = (m.group(4) or "").upper()
+            if suffix == "A":
+                tag = "historical"
+            elif suffix == "E":
+                tag = "forecast"
+            elif year < current_year:
+                tag = "historical"
+            elif year > current_year:
+                tag = "forecast"
+            else:
+                tag = "unknown"
+            result[col_idx] = (tag, year)
+        return result
+
+    @staticmethod
+    def _find_period_header_row(df, max_probe=10, min_hits=3):
+        """Return the index of the row with the most year-like cells, or None
+        if no row has at least ``min_hits`` matches.
+        """
+        if df is None or len(df) == 0:
+            return None
+        best_idx = None
+        best_count = 0
+        for probe in range(min(max_probe, len(df))):
+            row = df.iloc[probe].tolist()
+            count = 0
+            for v in row:
+                if v is None or pd.isna(v):
+                    continue
+                if _PERIOD_RE.search(str(v)):
+                    count += 1
+            if count > best_count:
+                best_count = count
+                best_idx = probe
+                if count >= 8:  # strong signal, no need to keep probing
+                    break
+        if best_count < min_hits:
+            return None
+        return best_idx
+
+    def _collect_historical_samples(self):
+        """Scan every sheet for rows whose label matches a Core 6 XBRL concept
+        and whose column headers parse as historical periods.
+
+        Returns a list of HistoricalCell objects (imported lazily to keep the
+        auditor importable without the edgar module at module load).
+
+        Sheet-level unit hints ("$ millions", "in thousands") are detected
+        from the top rows and applied as a multiplier on numeric values so
+        EDGAR comparisons can be made in raw USD. Cells carrying share counts
+        or per-share values (EPS) are exempted from the sheet-level scale
+        because their unit bucket is not USD.
+        """
+        from openpyxl.utils import get_column_letter
+
+        from src.edgar_validator import HistoricalCell, _bucket_for, match_concepts
+
+        samples = []
+        for sheet_name, df in self.ingestor.sheets_values.items():
+            if sheet_name in self.hidden_sheets:
+                continue
+            if df is None or len(df) < 2:
+                continue
+            header_row_idx = self._find_period_header_row(df)
+            if header_row_idx is None:
+                continue
+            period_cols = self._classify_period_columns(df, header_row_idx=header_row_idx)
+            if not period_cols:
+                continue
+            historical_cols = {
+                cidx: year for cidx, (tag, year) in period_cols.items()
+                if tag == "historical"
+            }
+            if not historical_cols:
+                continue
+            sheet_scale = _detect_sheet_scale(df, header_row_idx=header_row_idx)
+            # Start scanning rows below the detected header
+            for row_idx in range(header_row_idx + 1, len(df)):
+                row = df.iloc[row_idx]
+                label_col_count = _detect_label_cols(row.tolist())
+                if label_col_count == 0:
+                    continue
+                # Walk label cells right-to-left; use the first non-empty one
+                # as the canonical label. Sellside models often leave trailing
+                # label columns blank (e.g. [label, None, numbers...]), and
+                # hierarchical layouts push the most specific label rightmost.
+                label_str = None
+                for li in range(label_col_count - 1, -1, -1):
+                    cand = row.iloc[li]
+                    if pd.isna(cand):
+                        continue
+                    text = str(cand).strip()
+                    if not text:
+                        continue
+                    label_str = text
+                    break
+                if label_str is None:
+                    continue
+                concepts = match_concepts(label_str)
+                if not concepts:
+                    continue
+                for col_idx, year in historical_cols.items():
+                    if col_idx >= len(row):
+                        continue
+                    val = row.iloc[col_idx]
+                    if pd.isna(val) or not _is_numeric(val):
+                        continue
+                    try:
+                        numeric_val = float(
+                            str(val).replace(",", "").replace("$", "").replace("%", "").strip()
+                        )
+                    except (ValueError, AttributeError):
+                        continue
+                    # Apply sheet-level unit scale for USD-bucket concepts only.
+                    # Per-share and share-count values (EPS, diluted shares) are
+                    # already in their own bucket and are not re-scaled.
+                    if sheet_scale and sheet_scale != 1.0:
+                        primary_bucket = _bucket_for(concepts[0])
+                        if primary_bucket == "USD":
+                            numeric_val *= sheet_scale
+                    samples.append(HistoricalCell(
+                        sheet=sheet_name,
+                        row_label=label_str,
+                        col_letter=get_column_letter(col_idx + 1),
+                        row_idx=row_idx,
+                        col_idx=col_idx,
+                        year=year,
+                        value=numeric_val,
+                        concepts=concepts,
+                    ))
+        return samples
+
+    def check_edgar(self, ticker, validator=None):
+        """Validate historical cells against SEC EDGAR values.
+
+        When ticker is falsy, does nothing. On any resolution / network
+        failure, appends a single 'EDGAR Check Skipped' issue rather than
+        raising.
+        """
+        if not ticker or not str(ticker).strip():
+            return
+
+        logger.info("Running EDGAR check for ticker %s...", ticker)
+
+        if validator is None:
+            from src.edgar_validator import EDGARValidator
+            validator = EDGARValidator()
+
+        samples = self._collect_historical_samples()
+        new_issues = validator.validate(ticker, samples)
+        self.issues.extend(new_issues)
