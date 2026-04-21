@@ -317,6 +317,53 @@ class TestOpenAI(unittest.TestCase):
         self.assertIn("No issues were identified", result["analysis"])
         analyzer.client.chat.completions.create.assert_not_called()
 
+    def test_openai_rate_limit_surfaces_cleanly(self):
+        """
+        OpenAI RateLimitError must not crash the analyzer. The current
+        _call_openai catches it and returns a graceful "Analysis unavailable"
+        string rather than propagating the exception.
+        """
+        import openai as openai_mod
+
+        # Build a real RateLimitError-shaped exception so the except tuple matches
+        class _RateLimitError(openai_mod.RateLimitError if hasattr(openai_mod, "RateLimitError") else Exception):
+            pass
+
+        # If the stub doesn't define RateLimitError, inject a minimal one so
+        # the except clause in _call_openai can still catch it.
+        if not hasattr(openai_mod, "RateLimitError"):
+            openai_mod.RateLimitError = type("RateLimitError", (Exception,), {})
+        if not hasattr(openai_mod, "APIError"):
+            openai_mod.APIError = type("APIError", (Exception,), {})
+        if not hasattr(openai_mod, "APIConnectionError"):
+            openai_mod.APIConnectionError = type("APIConnectionError", (Exception,), {})
+
+        analyzer = _make_openai_analyzer()
+        analyzer.client.chat.completions.create.side_effect = openai_mod.RateLimitError(
+            "rate limited"
+        )
+
+        # _call_openai must swallow the exception and return a fallback string
+        result = analyzer._call_openai("prompt text")
+        self.assertIsInstance(result, str)
+        self.assertIn("unavailable", result.lower())
+
+    def test_openai_malformed_response_missing_choices(self):
+        """
+        A malformed OpenAI response (no 'choices' / empty choices list) must
+        surface as an analyzer error rather than a silent empty string. The
+        current implementation will raise an IndexError or AttributeError,
+        which the caller sees as an exception — not as a successful empty
+        analysis.
+        """
+        analyzer = _make_openai_analyzer()
+        bad_response = MagicMock()
+        bad_response.choices = []  # no choices
+        analyzer.client.chat.completions.create.return_value = bad_response
+
+        with self.assertRaises((IndexError, AttributeError)):
+            analyzer._call_openai("prompt text")
+
 
 # ---------------------------------------------------------------------------
 # Prompt truncation tests (Gap 15)
