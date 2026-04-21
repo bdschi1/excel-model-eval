@@ -2,7 +2,7 @@
 
 ## Context
 
-**Model:** Biotech DCF Model (ARVN)
+**Model:** Biotech DCF Model (Company A)
 **Complexity Score:** 3/5
 **Review Date:** 2024-10-15
 **Reviewer:** Senior Financial Analyst

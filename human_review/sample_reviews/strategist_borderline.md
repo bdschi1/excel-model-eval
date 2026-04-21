@@ -2,7 +2,7 @@
 
 ## Context
 
-**Model:** Consumer Products Operating Model (PEP)
+**Model:** Consumer Products Operating Model (Company B)
 **Complexity Score:** 4/5
 **Review Date:** 2024-10-18
 **Reviewer:** Senior Financial Analyst

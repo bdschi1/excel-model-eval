@@ -245,7 +245,7 @@ class DependencyEngine:
 
 # Unit Test
 if __name__ == "__main__":
-    # Mock data to test logic without loading full PEP model
+    # Mock data to test logic without loading a full model
     mock_data = {
         "Summary": pd.DataFrame([["=PFNA!A1 + 100", 50]]),
         "PFNA": pd.DataFrame([[100, 200]])
