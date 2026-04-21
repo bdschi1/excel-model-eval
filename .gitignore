@@ -126,3 +126,6 @@ how_it_works*
 how-it-works*
 how_to_use*
 how-to-use*
+
+# Local-only drivers (references user-specific paths / ticker fixtures not on GitHub)
+tools/run_edgar_sellside.py

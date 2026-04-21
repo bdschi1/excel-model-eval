@@ -169,6 +169,13 @@ with tab1:
         file_names = [f.name for f in uploaded_files]
         st.caption(f"Loaded: {', '.join(file_names)}")
 
+        ticker_input = st.text_input(
+            "Ticker (optional)",
+            value="",
+            max_chars=10,
+            help="SEC ticker (e.g. NVDA). When provided, historical cells matching Core 6 GAAP line items are cross-checked against EDGAR.",
+        ).strip().upper() or None
+
         if st.button("Run Audit", type="primary"):
             # Clear previous LLM results when starting new audit
             st.session_state.llm_result = {}
@@ -224,7 +231,12 @@ with tab1:
                             stats = {'circular_references': 0}
 
                         # --- PHASE 3: AUDITING ---
-                        auditor = ModelAuditor(ingestor, engine, hidden_sheets=ingestor.hidden_sheets, audit_id=audit_id)
+                        auditor = ModelAuditor(
+                            ingestor, engine,
+                            hidden_sheets=ingestor.hidden_sheets,
+                            audit_id=audit_id,
+                            ticker=ticker_input,
+                        )
                         issues = auditor.run_all_checks()
 
                         # --- PHASE 4: REPORTING ---

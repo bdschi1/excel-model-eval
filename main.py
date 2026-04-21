@@ -2,9 +2,10 @@ import argparse
 import json
 import os
 import sys
-from src.ingestion import ModelIngestor
-from src.dependency import DependencyEngine
+
 from src.auditor import ModelAuditor
+from src.dependency import DependencyEngine
+from src.ingestion import ModelIngestor
 from src.reporting import ReportGenerator
 
 _CI_MODEL = "claude-haiku-4-5-20251001"
@@ -97,6 +98,15 @@ def main():
             "outputs JSON to stdout, exits 1 if critical issues exceed threshold."
         ),
     )
+    parser.add_argument(
+        "--ticker",
+        type=str,
+        default=None,
+        help=(
+            "Optional SEC ticker (e.g. NVDA). When provided, historical cells "
+            "matching Core 6 GAAP line items are validated against EDGAR."
+        ),
+    )
     args = parser.parse_args()
 
     if args.ci:
@@ -118,10 +128,10 @@ def main():
     # --- PHASE II: LOGIC MAPPING ---
     dependency_engine = DependencyEngine(ingestor.sheets_formulas)
     dependency_engine.build_graph()
-    structure_stats = dependency_engine.analyze_structure()
+    dependency_engine.analyze_structure()
 
     # --- PHASE III: AUDIT ---
-    auditor = ModelAuditor(ingestor, dependency_engine)
+    auditor = ModelAuditor(ingestor, dependency_engine, ticker=args.ticker)
     issues = auditor.run_all_checks()
 
     # --- PHASE IV: REPORTING ---

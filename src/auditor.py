@@ -718,11 +718,26 @@ class ModelAuditor:
         """
         from openpyxl.utils import get_column_letter
 
-        from src.edgar_validator import HistoricalCell, _bucket_for, match_concepts
+        from src.edgar_validator import (
+            HistoricalCell,
+            _bucket_for,
+            _is_quarterly_sheet,
+            _is_segment_sheet,
+            match_concepts,
+        )
 
         samples = []
         for sheet_name, df in self.ingestor.sheets_values.items():
             if sheet_name in self.hidden_sheets:
+                continue
+            if _is_segment_sheet(sheet_name):
+                # Segment / business-line sheets (E&P, R&M, Upstream, etc.)
+                # hold divisional totals that don't tie to consolidated XBRL.
+                continue
+            if _is_quarterly_sheet(sheet_name):
+                # Quarterly / interim sheets hold quarter-end snapshots that
+                # don't tie to EDGAR fiscal-year tags even when columns parse
+                # as years; skip to avoid comparing mid-year values to FY XBRL.
                 continue
             if df is None or len(df) < 2:
                 continue

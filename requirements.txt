@@ -8,6 +8,7 @@ plotly>=5.18.0
 fpdf>=1.7.2
 xlsxwriter>=3.1.9
 pydantic>=2.5.0
+requests>=2.31.0
 
 # LLM Integration
 anthropic>=0.18.0
