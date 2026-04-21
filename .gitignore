@@ -13,9 +13,9 @@ secrets.json
 **/*.key
 
 # ============================================================
-# Claude Code
+# Claude Code (user-scoped local overrides only)
 # ============================================================
-.claude/
+.claude/settings.local.json
 
 # ============================================================
 # Data Protection
