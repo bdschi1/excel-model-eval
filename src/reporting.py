@@ -13,19 +13,41 @@ class ReportGenerator:
     Generates PDF memos, Excel datatapes, and calculates Complexity Scores.
     """
     def __init__(self, filename, issues, ingestor, dependency_engine):
+        import hashlib
+        import json
+
         self.filename = os.path.basename(filename).replace(os.sep, '_')
         self.issues = issues
         self.ingestor = ingestor
         self.graph = dependency_engine.graph if dependency_engine else None
         self.timestamp = datetime.now()
-        
+
         # Initialize Output Directory (project-relative, not cwd)
         _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.results_dir = os.path.join(_project_root, "RESULTS")
         os.makedirs(self.results_dir, exist_ok=True)
-        
+
         # Calculate Complexity
         self.complexity_score, self.complexity_rationale = self._calculate_complexity()
+
+        # Report fingerprint: timestamp + first 8 chars of SHA-256 over the
+        # issue list. Lets two runs of the same model be compared for drift —
+        # identical issue sets produce identical sha8, regardless of run time.
+        # The fingerprint is embedded in the PDF footer and Excel metadata.
+        _issues_blob = json.dumps(
+            [
+                {
+                    "type": str(i.get("type", "")),
+                    "severity": str(i.get("severity", "")),
+                    "location": str(i.get("location", "")),
+                    "detail": str(i.get("detail", "")),
+                }
+                for i in (self.issues or [])
+            ],
+            sort_keys=True,
+        ).encode("utf-8")
+        _sha8 = hashlib.sha256(_issues_blob).hexdigest()[:8]
+        self.fingerprint = f"{self.timestamp.strftime('%Y%m%d_%H%M%S')}-{_sha8}"
 
     def _calculate_complexity(self):
         """
@@ -143,10 +165,20 @@ class ReportGenerator:
             pdf.multi_cell(0, 5, f"   Detail: {safe_detail}")
             pdf.ln(2)
 
+        # Fingerprint footer — lets two runs of the same model be compared.
+        pdf.ln(8)
+        pdf.set_font(_FONT_NAME, "", 7)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(
+            0, 4, f"fingerprint: {self.fingerprint}",
+            new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="L",
+        )
+        pdf.set_text_color(0, 0, 0)
+
         ts = self.timestamp.strftime("%Y%m%d_%H%M%S")
         output_path = os.path.join(self.results_dir, f"Audit_Summary_{self.filename}_{ts}.pdf")
         pdf.output(output_path)
-            
+
         return output_path
 
     def generate_excel(self):
@@ -163,15 +195,25 @@ class ReportGenerator:
 
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
             workbook = writer.book
-            
+
+            # Fingerprint embedded in workbook metadata + as a custom property
+            # so two runs of the same model can be compared for drift.
+            workbook.set_properties({
+                "title": f"ModelLens Audit - {self.filename}",
+                "subject": "Structural audit report",
+                "comments": f"fingerprint: {self.fingerprint}",
+            })
+            workbook.set_custom_property("fingerprint", self.fingerprint)
+
             # --- TAB 1: DASHBOARD ---
             ws_summary = workbook.add_worksheet("Executive Summary")
             header_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'bg_color': '#1f4e78', 'font_color': 'white'})
-            
+
             ws_summary.write("B2", "Model Audit Dashboard", header_fmt)
             ws_summary.write("B4", f"Filename: {self.filename}")
             ws_summary.write("B5", f"Complexity Score: {self.complexity_score}/5")
             ws_summary.write("B6", f"Total Issues: {len(self.issues)}")
+            ws_summary.write("B7", f"Fingerprint: {self.fingerprint}")
             
             # --- TAB 2: DETAILED FINDINGS ---
             if not df.empty:

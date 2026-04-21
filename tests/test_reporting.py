@@ -422,3 +422,67 @@ class TestReportFingerprinting:
         assert _TS_PATTERN.search(os.path.basename(excel_path)), (
             f"Excel filename missing timestamp pattern: {excel_path}"
         )
+
+
+# ==================================================================
+# Gap 20: Content-hash fingerprint (timestamp + sha8 over issues)
+# ==================================================================
+
+_FP_PATTERN = re.compile(r"^\d{8}_\d{6}-[0-9a-f]{8}$")
+
+
+class TestContentFingerprint:
+    """Verify timestamp + sha8 fingerprint is present and stable."""
+
+    def test_fingerprint_attribute_format(self, tmp_path):
+        """rg.fingerprint should match '<ts>-<sha8>' format."""
+        rg = _make_report_generator(tmp_path=tmp_path)
+        assert _FP_PATTERN.match(rg.fingerprint), (
+            f"Fingerprint format invalid: {rg.fingerprint!r}"
+        )
+
+    def test_fingerprint_sha_stable_for_identical_issues(self, tmp_path):
+        """Identical issue lists must produce identical sha8 suffix."""
+        issues = _sample_issues(count=4)
+        rg1 = _make_report_generator(issues=list(issues), tmp_path=tmp_path)
+        rg2 = _make_report_generator(issues=list(issues), tmp_path=tmp_path)
+        sha1 = rg1.fingerprint.split("-")[-1]
+        sha2 = rg2.fingerprint.split("-")[-1]
+        assert sha1 == sha2, (
+            f"Same issues produced different sha8: {sha1} vs {sha2}"
+        )
+
+    def test_fingerprint_sha_differs_for_different_issues(self, tmp_path):
+        """Different issue lists must produce different sha8 suffixes."""
+        rg1 = _make_report_generator(issues=_sample_issues(count=3), tmp_path=tmp_path)
+        rg2 = _make_report_generator(issues=_sample_issues(count=7), tmp_path=tmp_path)
+        sha1 = rg1.fingerprint.split("-")[-1]
+        sha2 = rg2.fingerprint.split("-")[-1]
+        assert sha1 != sha2, (
+            f"Different issues produced identical sha8: {sha1}"
+        )
+
+    def test_excel_embeds_fingerprint(self, tmp_path):
+        """Generated Excel must expose the fingerprint via workbook properties."""
+        rg = _make_report_generator(tmp_path=tmp_path)
+        excel_path = rg.generate_excel()
+        wb = openpyxl.load_workbook(excel_path)
+        # xlsxwriter writes to workbook.properties / custom properties;
+        # openpyxl exposes them via wb.custom_doc_props and wb.properties.
+        fp_found = False
+        # Check standard properties (comments / description)
+        for attr in ("description", "comments", "subject", "title"):
+            val = getattr(wb.properties, attr, None) or ""
+            if rg.fingerprint in str(val):
+                fp_found = True
+                break
+        # Check custom doc props
+        if not fp_found:
+            for prop in wb.custom_doc_props.props:
+                if rg.fingerprint in str(prop.value):
+                    fp_found = True
+                    break
+        wb.close()
+        assert fp_found, (
+            f"Fingerprint {rg.fingerprint!r} not found in Excel metadata"
+        )
