@@ -27,6 +27,7 @@ results/
 *.xlsx
 *.xlsm
 *.csv
+*.pdf
 
 # Exception: Sample models for testing (allow these to be pushed)
 !sample_models/*.xlsx

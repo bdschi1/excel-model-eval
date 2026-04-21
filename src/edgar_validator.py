@@ -27,7 +27,12 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_UA = "ModelLens/1.0 (redacted@example.com)"
+# SEC fair-use policy requires a User-Agent containing a contact email.
+# This default is a placeholder; operators should override via the
+# MODELLENS_EDGAR_UA environment variable (or the user_agent constructor
+# arg) with their own contact address before running against the live
+# API. See https://www.sec.gov/os/accessing-edgar-data
+_DEFAULT_UA = "ModelLens/1.0 (set-MODELLENS_EDGAR_UA-env-var@example.com)"
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _FACTS_URL_FMT = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
