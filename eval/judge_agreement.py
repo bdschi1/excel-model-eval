@@ -20,9 +20,7 @@ Warns when issue_mention_rate < 0.7 (AI is missing >30% of known issues).
 from __future__ import annotations
 
 import logging
-import re
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

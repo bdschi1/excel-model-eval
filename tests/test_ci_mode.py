@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -16,7 +15,7 @@ class TestCIFlagLimitsScenarios(unittest.TestCase):
 
     def test_ci_flag_limits_scenarios(self):
         """_run_ci_mode audits exactly 1 model file (not multiple)."""
-        from main import _run_ci_mode, _CI_MODEL
+        from main import _run_ci_mode
 
         mock_ingestor = MagicMock()
         mock_ingestor.ingest.return_value = True
@@ -57,6 +56,7 @@ class TestCIOutputIsValidJSON(unittest.TestCase):
     def test_ci_output_is_valid_json(self):
         """_run_ci_mode prints valid JSON to stdout."""
         import io
+
         from main import _run_ci_mode
 
         mock_ingestor = MagicMock()
@@ -99,7 +99,7 @@ class TestCIExits1OnThresholdFailure(unittest.TestCase):
 
     def test_ci_exits_1_on_threshold_failure(self):
         """When critical issues exceed _CI_THRESHOLD_MAX_CRITICAL, sys.exit(1) is called."""
-        from main import _run_ci_mode, _CI_THRESHOLD_MAX_CRITICAL
+        from main import _CI_THRESHOLD_MAX_CRITICAL, _run_ci_mode
 
         mock_ingestor = MagicMock()
         mock_ingestor.ingest.return_value = True
