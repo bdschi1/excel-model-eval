@@ -1,6 +1,6 @@
 # Skill: Repository Enhancement from ZIP
 
-Transform a simple or incomplete repository (extracted from a .zip file) into a production-ready, portfolio-quality project with comprehensive documentation, evaluation frameworks, and LLM integration patterns.
+Take a repository extracted from a .zip file and add the structure, documentation, evaluation framework, and LLM integration patterns needed to push it to GitHub.
 
 ---
 
@@ -64,7 +64,7 @@ project-name/
 │   ├── reviewer_guidelines.md
 │   └── sample_reviews/        # Good, borderline, failed examples
 ├── trainer_tasks/             # Evaluation exercises
-├── docs/                      # Extended documentation
+├── docs/                      # Additional docs
 │   ├── failure_modes.md       # LLM failure pattern catalog
 │   └── transferability.md     # Cross-domain applications
 ├── sample_data/               # Example inputs (allowed in git)
@@ -73,9 +73,9 @@ project-name/
 ├── RESULTS/                   # Generated outputs (gitignored)
 ├── app.py                     # Frontend/entry point (if web app)
 ├── .env.example               # Template for secrets
-├── .gitignore                 # Comprehensive ignore file
+├── .gitignore                 # Ignore rules
 ├── LICENSE                    # MIT or appropriate license
-├── README.md                  # Professional documentation
+├── README.md                  # Project README
 └── requirements.txt           # Dependencies
 ```
 
@@ -785,7 +785,7 @@ if __name__ == "__main__":
 
 Verify before pushing:
 
-- [ ] README is comprehensive and accurate
+- [ ] README covers install, usage, and architecture
 - [ ] LICENSE file contains actual license text
 - [ ] .gitignore protects sensitive data
 - [ ] .env.example exists (no actual secrets)
@@ -828,14 +828,14 @@ When adapting this pattern to different domains:
 ### Scope Scaling
 
 For smaller projects, minimum viable enhancement:
-- README.md (professional)
-- .gitignore (comprehensive)
+- README.md
+- .gitignore
 - LICENSE
 - requirements.txt
 - One rubric
 - Basic failure modes doc
 
-For portfolio/showcase projects, include full framework.
+For larger projects, include the full framework above.
 
 ---
 
@@ -843,8 +843,8 @@ For portfolio/showcase projects, include full framework.
 
 After running this skill, the repository should:
 
-1. Have professional structure matching industry standards
-2. Include comprehensive documentation
-3. Protect sensitive data via .gitignore
-4. Demonstrate LLM evaluation competencies
-5. Be ready for GitHub push and portfolio showcase
+1. Have the directory structure defined in Phase 2
+2. Have README, LICENSE, .env.example, requirements listed
+3. Keep secrets and user data gitignored
+4. Include rubrics and failure-mode docs if LLM integration applies
+5. Be ready to push to GitHub
