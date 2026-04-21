@@ -9,15 +9,14 @@ from openpyxl.utils.cell import coordinate_from_string
 
 logger = logging.getLogger(__name__)
 
-# Regex to detect a cell reference (with optional $ anchors and optional sheet prefix).
-# Matches patterns like A1, $A$1, A1:B5, Sheet1!A1, 'Sheet 1'!$A$1:$B$5
+# Regex to detect a bare cell reference (with optional $ anchors, no sheet
+# prefix). Matches A1, $B$2, AA100, Q1, etc. but NOT Rate2024 or Revenue.
+# Also matches a two-cell range A1:B5. Used as the authoritative check for
+# "is this token a plain cell reference?" decisions across this module —
+# including the named-range heuristic in ``_parse_formula``.
 _CELL_RE = re.compile(
     r"^\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?$"
 )
-
-# Strict cell-reference pattern for distinguishing bare refs from named ranges.
-# Matches A1, $B$2, AA100, Q1, etc. but NOT Rate2024 or Revenue.
-_CELL_REF_PATTERN = re.compile(r"^\$?[A-Z]{1,3}\$?\d+$", re.IGNORECASE)
 
 # Max cells expanded from a single range to prevent OOM on whole-column refs
 _MAX_RANGE_CELLS = 10_000
@@ -139,9 +138,11 @@ class DependencyEngine:
                     if bare_ref.startswith("_xlnm"):
                         continue
 
-                    # Use cell-ref pattern to distinguish real cell refs (Q1, AA100)
-                    # from named ranges (Rate2024, Revenue).
-                    if not _CELL_REF_PATTERN.match(bare_ref) and bare_ref.lower() in self._defined_names:
+                    # Use the authoritative cell-ref pattern to distinguish
+                    # real cell refs (Q1, AA100) from named ranges (Rate2024,
+                    # Revenue). _CELL_RE.match => looks like a bare cell /
+                    # two-cell range, so skip named-range resolution.
+                    if not _CELL_RE.match(bare_ref) and bare_ref.lower() in self._defined_names:
                         ref_value = self._defined_names[bare_ref.lower()]
 
                     # Delegate to _add_edge which now handles range expansion
