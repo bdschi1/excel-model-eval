@@ -1,4 +1,4 @@
-<!-- excel-model-eval/README.md | Last updated: 2026-04-16 -->
+<!-- excel-model-eval/README.md | Last updated: 2026-04-23 -->
 
 # ModelLens
 
@@ -49,6 +49,48 @@ cp .env.example .env
 # Edit .env and add your API key
 ```
 
+### CI mode
+
+```bash
+python main.py --ci                       # audit sample model, JSON to stdout
+python main.py path/to/model.xlsx --ci    # audit any model
+```
+
+Runs the deterministic audit and emits a single JSON blob to stdout with
+`ci_mode`, `model`, `critical_issues_found`, `threshold_max_critical`, `pass`,
+and `summary` fields. Exits non-zero when critical issues exceed the threshold
+(default 5, set by `_CI_THRESHOLD_MAX_CRITICAL` in `main.py`). LLM analysis
+uses Haiku when an API key is available; otherwise the deterministic checks
+run alone.
+
+### SEC EDGAR value-check (optional)
+
+```bash
+python main.py path/to/model.xlsx --ticker NVDA
+```
+
+Or enter a ticker in the Streamlit app's **Ticker (optional)** field. When a
+ticker is supplied, historical cells whose labels match a set of GAAP
+concepts are cross-checked against SEC EDGAR XBRL company facts.
+
+- **Phase A (Core 6 GAAP):** Revenues, NetIncomeLoss, Assets, Liabilities,
+  CashAndCashEquivalentsAtCarryingValue, NetCashProvidedByUsedInOperatingActivities.
+- **Phase B (Extended):** adds GrossProfit, OperatingIncomeLoss, ProfitLoss,
+  StockholdersEquity, LongTermDebtNoncurrent, EPS variants, CapEx, plus a
+  derived Free Cash Flow and a derived total long-term debt check.
+- Filters out prior-year comparatives, non-GAAP labels, and segment/quarterly
+  sheets; tries multiple scale buckets (1, 1e3, 1e6, 1e9 USD); downgrades
+  inconclusive matches from Critical to Medium to keep noise low.
+
+Requires the `requests` library (already in `requirements.txt`). Per SEC
+fair-use policy, set `MODELLENS_EDGAR_UA` to a contact email before calling
+the EDGAR API — the default User-Agent is a placeholder and the SEC will
+reject it. The check is opt-in; omit `--ticker` to skip it entirely.
+
+```bash
+export MODELLENS_EDGAR_UA="ModelLens/1.0 (you@example.com)"
+```
+
 ---
 
 ## How It Works
@@ -88,7 +130,7 @@ The audit runs in four phases:
    - **Balance sheet integrity** — Checks that Assets = Liabilities + Equity across all projection periods (tolerance: ±$1).
    - **Broken/external references** — Detects `#REF!`, `#NAME?`, `#DIV/0!`, and links to external files.
 
-4. **Reporting** — Produces a complexity score (1–5 based on sheet count, formula density, and interdependency), a PDF memo, and an Excel datatape with all findings.
+4. **Reporting** — Produces a complexity score (1–5 based on sheet count, formula density, and interdependency), a PDF memo, and an Excel datatape with all findings. Each report is stamped with a run fingerprint of the form `YYYYMMDD_HHMMSS-<sha8>` (first 8 hex chars of SHA-256 over the issue list) embedded in the PDF footer and Excel metadata — useful for comparing two runs of the same model for drift.
 
 ### LLM Layer (Optional)
 
@@ -106,7 +148,7 @@ The audit runs in four phases:
 └──────────────────────────────────────────────────────────┘
 ```
 
-The LLM receives audit findings and produces narrative summaries. The AI judge (`eval/ai_judge.py`) supports an optional `thinking_budget` parameter for extended thinking, and LLM analyzer response parsing is thinking-block-safe (handles mixed thinking + text content blocks). System prompts are automatically cached via Anthropic's prompt caching API to reduce token costs on repeated calls. The LLM is constrained at the prompt level:
+The LLM receives audit findings and produces narrative summaries. The AI judge (`eval/ai_judge.py`) supports an optional `thinking_budget` parameter for extended thinking, and LLM analyzer response parsing is thinking-block-safe (handles mixed thinking + text content blocks). System prompts ≥400 chars are automatically wrapped in `cache_control: {"type": "ephemeral"}` for Anthropic prompt caching, reducing token cost on repeated calls. The Anthropic path uses a `tool_use` call (`produce_model_analysis`) for structured output with a retry-on-malformed-response loop (max 2 retries) — no user-facing flag. The LLM is constrained at the prompt level:
 
 - **Allowed**: explain findings, prioritize by materiality, suggest remediation, reference specific cells.
 - **Disallowed**: investment recommendations, valuation opinions, price targets, data invention.
@@ -134,9 +176,9 @@ The `builder/` module is an independent financial modeling library included in t
 It provides programmatic construction of:
 - **DCF models** — scenario-weighted discounted cash flow with sensitivity tables
 - **Comparable company analysis** — peer selection and implied valuation
-- **Operating models** — revenue/cost projections with flag detection
+- **Operating models** — segment-based revenue build-up with margin waterfall and working-capital projections
 
-Each builder uses Pydantic for input validation and produces structured outputs with markdown reports. See `examples/saas_dcf_walkthrough.py` for usage.
+Each builder uses Pydantic for input validation — growth rates, cost percentages, working-capital days, and trading multiples are bounds-checked at construction — and produces structured outputs with markdown reports. Output validators flag structural issues at warning or error severity (errors fire when a model is unusable, e.g. terminal FCF ≤ 0, negative EV, or negative equity per share). See `examples/saas_dcf_walkthrough.py` for usage.
 
 ### Evaluation Framework
 
@@ -186,7 +228,8 @@ excel-model-eval/
 │   ├── dependency.py          # Graph construction and analysis
 │   ├── auditor.py             # Heuristic checks and issue catalog
 │   ├── reporting.py           # PDF/Excel report generation and scoring
-│   └── llm_analyzer.py        # Optional LLM integration
+│   ├── llm_analyzer.py        # Optional LLM integration
+│   └── edgar_validator.py     # SEC EDGAR XBRL cross-validation (Phase A+B)
 ├── builder/                   # Financial model builder (independent)
 │   ├── dcf_builder.py         # DCF valuation engine
 │   ├── comps_builder.py       # Comparable company analysis
