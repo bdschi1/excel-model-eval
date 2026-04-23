@@ -163,3 +163,41 @@ class TestCompsBuilder:
         )
         assert result["ev_to_ebitda"] is None
         assert result["pe"] is None
+
+    def test_implied_value_rejects_zero_shares(
+        self, comps_builder: CompsTableBuilder
+    ) -> None:
+        comps_builder.build()
+        with pytest.raises(ValueError):
+            comps_builder.implied_value(
+                target_ebitda=100.0, shares=0
+            )
+
+    def test_peer_rejects_negative_multiple(self) -> None:
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            PeerCompany(
+                ticker="X", name="XCo",
+                ev_to_ebitda=-5.0,
+            )
+
+    def test_peer_rejects_zero_multiple(self) -> None:
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            PeerCompany(ticker="Y", name="YCo", pe=0.0)
+
+    def test_peer_rejects_negative_market_cap(self) -> None:
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            PeerCompany(
+                ticker="Z", name="ZCo",
+                market_cap=-1000.0,
+            )
+
+    def test_peer_allows_none_multiples(self) -> None:
+        # None means peer doesn't have the metric — still accepted.
+        p = PeerCompany(
+            ticker="A", name="ACo",
+            ev_to_ebitda=12.0, pe=None,
+        )
+        assert p.pe is None

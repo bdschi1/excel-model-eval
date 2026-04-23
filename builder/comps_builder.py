@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import statistics
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class PeerCompany(BaseModel):
@@ -16,6 +16,20 @@ class PeerCompany(BaseModel):
     ev_to_revenue: float | None = None
     peg: float | None = None
     market_cap: float | None = None
+
+    @field_validator("ev_to_ebitda", "pe", "ev_to_revenue", "peg", "market_cap")
+    @classmethod
+    def _reject_nonpositive_when_provided(
+        cls, v: float | None
+    ) -> float | None:
+        # Trading multiples and market cap are structurally > 0. None is
+        # allowed (peer doesn't have the metric); 0 or negative values
+        # would silently pollute medians/means.
+        if v is not None and v <= 0:
+            raise ValueError(
+                f"multiple/market_cap must be > 0 when provided (got {v})"
+            )
+        return v
 
 
 class CompsTableBuilder:
@@ -100,6 +114,12 @@ class CompsTableBuilder:
         dict
             Mapping of metric name to implied per-share price.
         """
+        if shares <= 0:
+            raise ValueError(
+                f"shares must be > 0 for per-share implied values "
+                f"(got {shares})"
+            )
+
         if not self._stats:
             self.build()
 

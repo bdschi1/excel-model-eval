@@ -50,22 +50,10 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
             )
         )
 
-    # 2. Terminal growth >= WACC (model breaks)
-    if a.terminal_growth >= a.wacc:
-        issues.append(
-            ValidationIssue(
-                severity="error",
-                dimension="Terminal Growth",
-                message=(
-                    f"Terminal growth {a.terminal_growth:.1%} >= "
-                    f"WACC {a.wacc:.1%}. "
-                    "Gordon Growth model is invalid."
-                ),
-                threshold=f"< {a.wacc:.1%}",
-            )
-        )
+    # NOTE: terminal_growth >= wacc is enforced at construction by
+    # ModelAssumptions, so no runtime check is needed here.
 
-    # 3. TV as % of EV > 85%
+    # 2. TV as % of EV > 85%
     if tv.tv_as_pct_of_ev > 85.0:
         issues.append(
             ValidationIssue(
@@ -79,7 +67,7 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
             )
         )
 
-    # 4. TV as % of EV < 40%
+    # 3. TV as % of EV < 40%
     if tv.tv_as_pct_of_ev < 40.0:
         issues.append(
             ValidationIssue(
@@ -94,7 +82,7 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
             )
         )
 
-    # 5. WACC outside sector benchmark range
+    # 4. WACC outside sector benchmark range
     sector = a.sector
     if sector in SECTOR_WACC_BENCHMARKS:
         lo, hi = SECTOR_WACC_BENCHMARKS[sector]
@@ -112,7 +100,7 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
                 )
             )
 
-    # 6. Implied exit multiple > 30x
+    # 5. Implied exit multiple > 30x
     if tv.implied_exit_multiple > 30.0:
         issues.append(
             ValidationIssue(
@@ -127,7 +115,7 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
             )
         )
 
-    # 7. Revenue growth in any year > 30%
+    # 6. Revenue growth in any year > 30%
     for p in output.projections:
         if p.revenue_growth > 0.30:
             issues.append(
@@ -142,7 +130,7 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
                 )
             )
 
-    # 8. Margin expansion > 500 bps in any year
+    # 7. Margin expansion > 500 bps in any year
     margins = [p.ebitda_margin for p in output.projections]
     for i in range(1, len(margins)):
         expansion = margins[i] - margins[i - 1]
@@ -161,16 +149,48 @@ def validate(output: ModelOutput) -> list[ValidationIssue]:
                 )
             )
 
-    # 9. FCF negative in final projection year
-    if output.projections and output.projections[-1].fcf < 0:
+    # 8. FCF <= 0 in final projection year (terminal_fcf)
+    # Gordon Growth is undefined when terminal_fcf <= 0. The DCF
+    # builder clamps TV to 0 in that case; flag as error so callers
+    # know the equity valuation has no going-concern component.
+    if output.projections and output.projections[-1].fcf <= 0:
         issues.append(
             ValidationIssue(
-                severity="warning",
+                severity="error",
                 dimension="Free Cash Flow",
                 message=(
-                    "FCF is negative in the final projection year "
-                    f"({output.projections[-1].year}). "
-                    "Terminal value may be invalid."
+                    f"Terminal FCF ({output.projections[-1].fcf:,.2f}) "
+                    "is <= 0. Gordon Growth is undefined; terminal "
+                    "value has been clamped to 0."
+                ),
+                threshold="> 0",
+            )
+        )
+
+    # 9. Enterprise value < 0
+    if output.valuation.ev < 0:
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                dimension="Enterprise Value",
+                message=(
+                    f"Enterprise value is {output.valuation.ev:,.2f} "
+                    "(< 0). Model output is not usable."
+                ),
+                threshold=">= 0",
+            )
+        )
+
+    # 10. Equity value per share < 0
+    if output.valuation.equity_value_per_share < 0:
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                dimension="Equity Value",
+                message=(
+                    "Equity value per share is "
+                    f"{output.valuation.equity_value_per_share:,.2f} "
+                    "(< 0). Model output is not usable."
                 ),
                 threshold=">= 0",
             )

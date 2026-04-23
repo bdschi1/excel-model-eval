@@ -6,7 +6,11 @@ plugin). See `references/fsp-skills/INDEX.md` for the full mapping.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Plausibility bounds for unit-growth lists. Matches revenue_growth_by_year
+# in builder.assumptions so a unit-error (10 vs 0.10) is caught.
+_UNIT_GROWTH_MIN, _UNIT_GROWTH_MAX = -0.95, 2.0
 
 
 # ------------------------------------------------------------------
@@ -16,28 +20,52 @@ class Segment(BaseModel):
     """One revenue segment (e.g. product line, geography)."""
 
     name: str
-    units_base: float
+    units_base: float = Field(ge=0.0)
     unit_growth_by_year: list[float]
-    asp_base: float
-    asp_growth: float = 0.0
+    asp_base: float = Field(ge=0.0)
+    asp_growth: float = Field(default=0.0, ge=-1.0, le=1.0)
+
+    @field_validator("unit_growth_by_year")
+    @classmethod
+    def _check_unit_growth_bounds(cls, v: list[float]) -> list[float]:
+        for i, g in enumerate(v):
+            if g < _UNIT_GROWTH_MIN or g > _UNIT_GROWTH_MAX:
+                raise ValueError(
+                    f"unit_growth_by_year[{i}]={g} outside plausible "
+                    f"range [{_UNIT_GROWTH_MIN}, {_UNIT_GROWTH_MAX}] "
+                    "(expressed as a fraction, not a percent)"
+                )
+        return v
 
 
 class CostStructure(BaseModel):
     """Cost percentages expressed as a fraction of revenue."""
 
-    cogs_pct: float = 0.40
-    sga_pct: float = 0.15
-    rnd_pct: float = 0.10
-    interest_expense: float = 0.0
-    tax_rate: float = 0.25
+    cogs_pct: float = Field(default=0.40, ge=0.0, le=1.0)
+    sga_pct: float = Field(default=0.15, ge=0.0, le=1.0)
+    rnd_pct: float = Field(default=0.10, ge=0.0, le=1.0)
+    interest_expense: float = Field(default=0.0, ge=0.0)
+    tax_rate: float = Field(default=0.25, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _check_cost_pcts_sum(self) -> CostStructure:
+        # COGS + SG&A + R&D cannot exceed 100% of revenue, else EBIT
+        # is structurally negative regardless of revenue level.
+        total = self.cogs_pct + self.sga_pct + self.rnd_pct
+        if total > 1.0:
+            raise ValueError(
+                f"cogs_pct + sga_pct + rnd_pct = {total:.4f} exceeds 1.0; "
+                "EBIT would be structurally negative"
+            )
+        return self
 
 
 class WorkingCapitalDrivers(BaseModel):
     """Working-capital assumptions in days."""
 
-    dso: float = 45.0
-    dio: float = 30.0
-    dpo: float = 40.0
+    dso: float = Field(default=45.0, ge=0.0, le=365.0)
+    dio: float = Field(default=30.0, ge=0.0, le=365.0)
+    dpo: float = Field(default=40.0, ge=0.0, le=365.0)
 
 
 class OperatingAssumptions(BaseModel):
@@ -129,8 +157,10 @@ class OperatingModelBuilder:
         for yi in range(a.projection_years):
             seg_revs: dict[str, float] = {}
             for seg in a.segments:
+                # Compound units year-by-year using per-year unit growth.
+                # If the growth vector is shorter than the projection,
+                # fall back to 0% growth for the remaining years.
                 units = seg.units_base
-                asp = seg.asp_base
                 for j in range(yi + 1):
                     growth = (
                         seg.unit_growth_by_year[j]
@@ -138,11 +168,9 @@ class OperatingModelBuilder:
                         else 0.0
                     )
                     units = units * (1.0 + growth)
-                    if j > 0:
-                        asp = asp * (1.0 + seg.asp_growth)
-                    elif yi == 0:
-                        # First projection year: apply ASP growth once
-                        asp = asp * (1.0 + seg.asp_growth)
+                # ASP compounds at a constant rate across the projection
+                # horizon: year N = asp_base * (1 + asp_growth) ** N.
+                asp = seg.asp_base * (1.0 + seg.asp_growth) ** (yi + 1)
                 seg_revs[seg.name] = round(units * asp, 2)
 
             total_rev = sum(seg_revs.values())

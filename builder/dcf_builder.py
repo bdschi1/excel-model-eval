@@ -140,24 +140,26 @@ class DCFModelBuilder(BaseModelBuilder):
             )
             prev_revenue = revenue
 
-        # Terminal value (Gordon Growth)
+        # Terminal value (Gordon Growth). ModelAssumptions enforces
+        # terminal_growth < wacc at construction, so spread is positive.
+        # When terminal_fcf <= 0, Gordon Growth is undefined; clamp TV
+        # to 0 and rely on validators.validate() to surface an error.
         terminal_fcf = projections[-1].fcf
         spread = a.wacc - a.terminal_growth
-        if spread <= 0:
-            # Gordon Growth model is invalid when tgr >= wacc.
-            # Use a very large terminal value to signal the problem.
-            tv = terminal_fcf * 1000.0 if terminal_fcf != 0 else 0.0
+        if terminal_fcf <= 0:
+            tv = 0.0
+            pv_tv = 0.0
         else:
             tv = terminal_fcf * (1.0 + a.terminal_growth) / spread
-        pv_tv = tv / (1.0 + a.wacc) ** a.projection_years
+            pv_tv = tv / (1.0 + a.wacc) ** a.projection_years
 
         sum_pv_fcf = sum(p.pv_fcf for p in projections)
         ev = sum_pv_fcf + pv_tv
         equity_value = ev - a.net_debt
         per_share = equity_value / a.shares_outstanding
 
-        implied_exit = tv / terminal_fcf if terminal_fcf != 0 else 0.0
-        tv_pct = (pv_tv / ev * 100.0) if ev != 0 else 0.0
+        implied_exit = tv / terminal_fcf if terminal_fcf > 0 else 0.0
+        tv_pct = (pv_tv / ev * 100.0) if ev > 0 else 0.0
 
         terminal = TerminalValue(
             terminal_fcf=round(terminal_fcf, 2),

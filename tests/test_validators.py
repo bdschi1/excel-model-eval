@@ -70,13 +70,10 @@ class TestValidators:
         assert _has_issue(issues, "Terminal Growth", "warning")
 
     def test_terminal_growth_exceeds_wacc_error(self) -> None:
-        # terminal_growth must be < wacc for Gordon Growth
-        # We set terminal_growth = wacc (>= triggers error)
-        # but pydantic caps terminal_growth at 0.05, so set
-        # wacc low enough.
-        out = _build_output(wacc=0.04, terminal_growth=0.04)
-        issues = validate(out)
-        assert _has_issue(issues, "Terminal Growth", "error")
+        # tg >= wacc is rejected at construction (Pydantic), not at validate()
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            _build_output(wacc=0.04, terminal_growth=0.04)
 
     def test_tv_pct_too_high_warning(self) -> None:
         # Very low near-term FCF + high terminal => high TV%
@@ -107,21 +104,62 @@ class TestValidators:
         issues = validate(out)
         assert _has_issue(issues, "Exit Multiple", "warning")
 
-    def test_negative_fcf_warning(self) -> None:
-        # Huge capex and small margins => negative FCF
+    def test_negative_fcf_error(self) -> None:
+        # Tiny margins => negative terminal FCF; Gordon Growth is
+        # undefined so severity is error, not warning.
         out = _build_output(
             ebitda_margin_by_year=[0.02] * 5,
             revenue_growth_by_year=[0.0] * 5,
         )
-        # Check if final-year FCF is actually negative
-        if out.projections[-1].fcf < 0:
+        if out.projections[-1].fcf <= 0:
             issues = validate(out)
             assert _has_issue(
-                issues, "Free Cash Flow", "warning"
+                issues, "Free Cash Flow", "error"
             )
         else:
-            # If FCF happens to be positive, skip
             pytest.skip("FCF not negative with these params")
+
+    def test_terminal_fcf_clamped_to_zero(self) -> None:
+        # When terminal_fcf <= 0, TV and PV(TV) are clamped to 0.
+        out = _build_output(
+            ebitda_margin_by_year=[0.02] * 5,
+            revenue_growth_by_year=[0.0] * 5,
+        )
+        if out.projections[-1].fcf <= 0:
+            assert out.terminal_value.terminal_value == 0.0
+            assert out.terminal_value.pv_terminal == 0.0
+        else:
+            pytest.skip("FCF not negative with these params")
+
+    def test_ev_negative_error(self) -> None:
+        # Extremely negative FCFs across projections push EV below 0.
+        # With terminal_fcf <= 0 the TV component is clamped to 0, so
+        # if the sum of PV(FCF) is deeply negative, EV < 0.
+        out = _build_output(
+            ebitda_margin_by_year=[-0.50] * 5,
+            revenue_growth_by_year=[0.0] * 5,
+        )
+        if out.valuation.ev < 0:
+            issues = validate(out)
+            assert _has_issue(
+                issues, "Enterprise Value", "error"
+            )
+        else:
+            pytest.skip("EV not negative with these params")
+
+    def test_equity_per_share_negative_error(self) -> None:
+        # Positive but small EV combined with huge net_debt drives
+        # equity_value_per_share below 0.
+        out = _build_output(
+            net_debt=100_000.0,
+        )
+        if out.valuation.equity_value_per_share < 0:
+            issues = validate(out)
+            assert _has_issue(
+                issues, "Equity Value", "error"
+            )
+        else:
+            pytest.skip("Equity per share not negative with these params")
 
     def test_high_revenue_growth_warning(self) -> None:
         out = _build_output(
