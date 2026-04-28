@@ -130,3 +130,6 @@ how-to-use*
 
 # Local-only drivers (references user-specific paths / ticker fixtures not on GitHub)
 tools/run_edgar_sellside.py
+
+# Local agent config (full directory)
+.claude/
