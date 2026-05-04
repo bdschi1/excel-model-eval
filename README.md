@@ -8,6 +8,7 @@
 ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat&logo=pydantic&logoColor=white)
 ![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=flat&logo=anthropic&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)
+![tests](https://img.shields.io/badge/tests-371%20passing-brightgreen?style=flat)
 
 A structural audit tool for Excel-based financial models. It reads an Excel workbook, maps every cell and formula into a dependency graph, runs deterministic checks for common modeling errors (hard-coded plugs, broken references, balance sheet imbalances), and produces a PDF memo and Excel report of findings. An optional LLM layer can generate narrative summaries — but the core audit is purely rule-based and does not require any API keys.
 
@@ -127,7 +128,7 @@ The audit runs in four phases:
 
 3. **Audit checks** — Three core checks run against the graph and values:
    - **Hard-coded plugs** — Rows where most cells are formulas but some projection-period cells are constants (analysts overriding the model).
-   - **Balance sheet integrity** — Checks that Assets = Liabilities + Equity across all projection periods (tolerance: ±$1).
+   - **Balance sheet integrity** — Checks that Assets = Liabilities + Equity across all projection periods (tolerance: 0.1% of total assets, $1,000 floor).
    - **Broken/external references** — Detects `#REF!`, `#NAME?`, `#DIV/0!`, and links to external files.
 
 4. **Reporting** — Produces a complexity score (1–5 based on sheet count, formula density, and interdependency), a PDF memo, and an Excel datatape with all findings. Each report is stamped with a run fingerprint of the form `YYYYMMDD_HHMMSS-<sha8>` (first 8 hex chars of SHA-256 over the issue list) embedded in the PDF footer and Excel metadata — useful for comparing two runs of the same model for drift.
