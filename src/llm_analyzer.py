@@ -281,7 +281,7 @@ class LLMAnalyzer:
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY environment variable not set")
             self.client = anthropic.Anthropic(api_key=api_key)
-            self.model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")  # update when model is deprecated
+            self.model = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-7")
 
         elif self.provider == "openai":
             if not OPENAI_AVAILABLE:

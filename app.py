@@ -535,7 +535,7 @@ with tab2:
 with tab3:
     st.markdown(r"""
     **Critical** — Errors that invalidate model output
-    * *Accounting Mismatch:* Balance sheet variance > $1.00 (Assets ≠ Liabs + Equity)
+    * *Accounting Mismatch:* Balance sheet variance > 0.1% of total assets, $1,000 floor (Assets ≠ Liabs + Equity)
     * *Circular Logic:* Infinite loops in the formula graph
 
     **High** — Structural weaknesses suggesting manipulation or fragility

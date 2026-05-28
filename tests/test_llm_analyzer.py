@@ -123,7 +123,7 @@ def _make_analyzer() -> LLMAnalyzer:
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         analyzer = LLMAnalyzer.__new__(LLMAnalyzer)
         analyzer.provider = "anthropic"
-        analyzer.model = "claude-sonnet-4-20250514"
+        analyzer.model = "claude-opus-4-7"
         analyzer.client = MagicMock()
         return analyzer
 

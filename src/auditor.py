@@ -41,8 +41,12 @@ _PLUG_SKIP_KEYWORDS = (
     "crosscheck",
 )
 
-# Balance sheet tolerance: 1 basis point of total assets (or $1 floor)
-_BS_TOLERANCE_BPS = 0.0001
+# Balance sheet tolerance: 0.1% of total assets, with a $1,000 floor.
+# Institutional models displayed in $M accumulate ROUND() artifacts well above
+# 1 bp; a $1 absolute floor is meaningless on real balance sheets. 10 bps + $1k
+# absorbs typical display rounding while still catching real plug errors.
+_BS_TOLERANCE_PCT = 0.001       # 0.1% of total assets
+_BS_TOLERANCE_FLOOR = 1_000.0   # absolute $ minimum
 
 # --- Compiled regex patterns (module-level so they compile once at import) ---
 
@@ -478,9 +482,9 @@ class ModelAuditor:
 
             for period_idx, var_val in variance.items():
                 abs_var = abs(var_val)
-                # Proportional tolerance: 1bp of total assets or $1, whichever is larger
+                # Proportional tolerance: 0.1% of total assets or $1,000 floor, whichever is larger
                 asset_val = assets_vals.get(period_idx, 0)
-                tolerance = max(1.0, abs(asset_val) * _BS_TOLERANCE_BPS)
+                tolerance = max(_BS_TOLERANCE_FLOOR, abs(asset_val) * _BS_TOLERANCE_PCT)
 
                 if abs_var > tolerance:
                     self._add_issue(

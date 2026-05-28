@@ -247,6 +247,46 @@ class TestHardcodedPlugDetection:
         auditor.detect_hardcoded_plugs()
         assert len(auditor.issues) == 0
 
+    def test_skips_balance_check_row(self):
+        """A 'Balance Check' diagnostic row should not flag a sandwich plug."""
+        row_data = ["Balance Check", None, None,
+                    "=A1", "=B1", "=C1", "=D1", 0, "=F1", "=G1", "=H1"]
+        df_formulas = pd.DataFrame([row_data])
+        auditor = _make_auditor(sheets_formulas={"BS": df_formulas})
+        auditor.detect_hardcoded_plugs()
+        plug_issues = [i for i in auditor.issues if i["type"] == "Hard-coded Plug"]
+        assert len(plug_issues) == 0
+
+    def test_skips_tieout_row(self):
+        """A 'Tieout' reconciliation row should not flag a sandwich plug."""
+        row_data = ["Tieout", None, None,
+                    "=A1", "=B1", "=C1", "=D1", 0, "=F1", "=G1", "=H1"]
+        df_formulas = pd.DataFrame([row_data])
+        auditor = _make_auditor(sheets_formulas={"DCF": df_formulas})
+        auditor.detect_hardcoded_plugs()
+        plug_issues = [i for i in auditor.issues if i["type"] == "Hard-coded Plug"]
+        assert len(plug_issues) == 0
+
+    def test_skips_crosscheck_row_with_dash(self):
+        """'Cross-check' (with hyphen) should normalize to 'crosscheck' and skip."""
+        row_data = ["Cross-Check", None, None,
+                    "=A1", "=B1", "=C1", "=D1", 0, "=F1", "=G1", "=H1"]
+        df_formulas = pd.DataFrame([row_data])
+        auditor = _make_auditor(sheets_formulas={"DCF": df_formulas})
+        auditor.detect_hardcoded_plugs()
+        plug_issues = [i for i in auditor.issues if i["type"] == "Hard-coded Plug"]
+        assert len(plug_issues) == 0
+
+    def test_skips_subtotal_row(self):
+        """'Subtotal' aggregator row should not flag a sandwich plug."""
+        row_data = ["Subtotal", None, None,
+                    "=A1", "=B1", "=C1", "=D1", 999, "=F1", "=G1", "=H1"]
+        df_formulas = pd.DataFrame([row_data])
+        auditor = _make_auditor(sheets_formulas={"IS": df_formulas})
+        auditor.detect_hardcoded_plugs()
+        plug_issues = [i for i in auditor.issues if i["type"] == "Hard-coded Plug"]
+        assert len(plug_issues) == 0
+
 
 class TestBalanceSheetIntegrity:
     """verify_balance_sheet_integrity() tests."""
@@ -263,10 +303,10 @@ class TestBalanceSheetIntegrity:
         assert len(bs_issues) == 0
 
     def test_imbalanced_sheet_flags_issue(self):
-        """Variance > $1 should flag critical issue."""
+        """Variance above the $1,000 floor (and above 0.1% of assets) should flag critical."""
         df_vals = pd.DataFrame([
-            ["Total Assets", None, 1000, 1100, 1200],
-            ["Total Liabilities & Equity", None, 1000, 1050, 1200],
+            ["Total Assets", None, 100_000, 100_000, 100_000],
+            ["Total Liabilities & Equity", None, 100_000, 95_000, 100_000],
         ])
         auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
         auditor.verify_balance_sheet_integrity()
@@ -293,7 +333,7 @@ class TestBalanceSheetIntegrity:
         assert len(bs_issues) == 0
 
     def test_small_rounding_difference_tolerated(self):
-        """Variance <= $1 (rounding) should not flag."""
+        """Sub-floor sub-cent variance from display rounding should not flag."""
         df_vals = pd.DataFrame([
             ["Total Assets", None, 1000.50, 1100.30],
             ["Total Liabilities & Equity", None, 1000.00, 1100.00],
@@ -302,6 +342,122 @@ class TestBalanceSheetIntegrity:
         auditor.verify_balance_sheet_integrity()
         bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
         assert len(bs_issues) == 0
+
+    def test_proportional_tolerance_large_model_passes(self):
+        """$10B assets, $5M variance (0.05%) is below the 0.1% tolerance."""
+        df_vals = pd.DataFrame([
+            ["Total Assets", None, 10_000_000_000],
+            ["Total Liabilities & Equity", None, 9_995_000_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 0
+
+    def test_proportional_tolerance_large_model_fails(self):
+        """$10B assets, $50M variance (0.5%) exceeds the 0.1% tolerance."""
+        df_vals = pd.DataFrame([
+            ["Total Assets", None, 10_000_000_000],
+            ["Total Liabilities & Equity", None, 9_950_000_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 1
+
+    def test_floor_blocks_small_pct_on_tiny_asset(self):
+        """$10K assets, $500 variance (5%) — under the $1,000 floor, no flag."""
+        df_vals = pd.DataFrame([
+            ["Total Assets", None, 10_000],
+            ["Total Liabilities & Equity", None, 9_500],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 0
+
+    def test_variance_at_tolerance_boundary_no_flag(self):
+        """Variance exactly equal to tolerance should not flag (strict `>`)."""
+        df_vals = pd.DataFrame([
+            ["Total Assets", None, 100_000],
+            ["Total Liabilities & Equity", None, 99_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 0
+
+    def test_multi_period_drift_flags_each_period(self):
+        """Escalating BS drift across forecast periods flags one issue per bad period."""
+        df_vals = pd.DataFrame([
+            ["Total Assets",              None, 100_000, 110_000, 120_000, 130_000],
+            ["Total Liabilities & Equity", None, 100_000, 108_000, 115_000, 120_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 3
+
+    def test_zero_asset_period_uses_floor_only(self):
+        """Period with zero assets — only the $1,000 floor applies."""
+        df_vals_no_flag = pd.DataFrame([
+            ["Total Assets", None, 0],
+            ["Total Liabilities & Equity", None, 500],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals_no_flag})
+        auditor.verify_balance_sheet_integrity()
+        assert len([i for i in auditor.issues if i["type"] == "Accounting Mismatch"]) == 0
+
+        df_vals_flag = pd.DataFrame([
+            ["Total Assets", None, 0],
+            ["Total Liabilities & Equity", None, 5_000],
+        ])
+        auditor2 = _make_auditor(sheets_values={"Balance Sheet": df_vals_flag})
+        auditor2.verify_balance_sheet_integrity()
+        assert len([i for i in auditor2.issues if i["type"] == "Accounting Mismatch"]) == 1
+
+    def test_nan_values_in_period_handled(self):
+        """NaN/None in a period cell should be coerced to 0 without crashing."""
+        df_vals = pd.DataFrame([
+            ["Total Assets",              None, 100_000, None,    120_000],
+            ["Total Liabilities & Equity", None, 100_000, "n/a",   120_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 0
+
+    def test_l_and_e_row_above_assets_row(self):
+        """Row order should not matter; detector finds both regardless of position."""
+        df_vals = pd.DataFrame([
+            ["Total Liabilities & Equity", None, 1_000_000, 1_100_000],
+            ["Total Assets",              None, 1_000_000, 1_100_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 0
+
+    def test_negative_equity_handled(self):
+        """Distressed company with negative L&E — abs() in tolerance still works."""
+        df_vals = pd.DataFrame([
+            ["Total Assets",              None, 1_000_000],
+            ["Total Liabilities & Equity", None, -50_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        bs_issues = [i for i in auditor.issues if i["type"] == "Accounting Mismatch"]
+        assert len(bs_issues) == 1
+
+    def test_only_assets_row_found_no_flag(self):
+        """Partial detection (assets present, L&E label missing) returns silently."""
+        df_vals = pd.DataFrame([
+            ["Total Assets", None, 100_000, 110_000],
+            ["Some other row", None, 50_000, 55_000],
+        ])
+        auditor = _make_auditor(sheets_values={"Balance Sheet": df_vals})
+        auditor.verify_balance_sheet_integrity()
+        assert len(auditor.issues) == 0
 
 
 class TestRunAllChecks:
@@ -582,14 +738,16 @@ class TestDanglingOutputs:
 
 
 class TestBSToleranceConstant:
-    """Verify the _BS_TOLERANCE_BPS constant is importable and correct."""
+    """Verify the BS tolerance constants are importable and correct."""
 
-    def test_bs_tolerance_constant_exists(self):
-        """_BS_TOLERANCE_BPS should be importable from src.auditor."""
-        from src.auditor import _BS_TOLERANCE_BPS  # noqa: F811
-        assert _BS_TOLERANCE_BPS is not None
+    def test_bs_tolerance_constants_exist(self):
+        """Both BS tolerance constants should be importable from src.auditor."""
+        from src.auditor import _BS_TOLERANCE_FLOOR, _BS_TOLERANCE_PCT  # noqa: F811
+        assert _BS_TOLERANCE_PCT is not None
+        assert _BS_TOLERANCE_FLOOR is not None
 
-    def test_bs_tolerance_value(self):
-        """_BS_TOLERANCE_BPS should equal 0.0001 (1 basis point)."""
-        from src.auditor import _BS_TOLERANCE_BPS  # noqa: F811
-        assert _BS_TOLERANCE_BPS == 0.0001
+    def test_bs_tolerance_values(self):
+        """_BS_TOLERANCE_PCT == 0.001 (10 bps); _BS_TOLERANCE_FLOOR == 1000.0."""
+        from src.auditor import _BS_TOLERANCE_FLOOR, _BS_TOLERANCE_PCT  # noqa: F811
+        assert _BS_TOLERANCE_PCT == 0.001
+        assert _BS_TOLERANCE_FLOOR == 1_000.0
