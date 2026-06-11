@@ -130,26 +130,35 @@ class ReportGenerator:
 
         critical = [i for i in self.issues if i['severity'] == 'Critical']
         high = [i for i in self.issues if i['severity'] == 'High']
+        medium = [i for i in self.issues if i['severity'] == 'Medium']
 
         pdf.set_font(_FONT_NAME, "", 10)
         summary_text = (
             f"The model was evaluated for structural integrity, logical consistency, and best practices. "
-            f"We detected {len(critical)} Critical Errors and {len(high)} High Risk Warnings. "
+            f"We detected {len(critical)} Critical Errors, {len(high)} High Risk Warnings, "
+            f"and {len(medium)} Medium issues. "
             f"The complexity rating is {self.complexity_score}/5."
         )
         pdf.multi_cell(0, 5, summary_text)
         pdf.ln(5)
 
-        # High Priority Issues
+        # Top issues — prefer Critical/High; surface Medium when those are
+        # absent so empty-data or all-Medium runs aren't reported as clean.
         pdf.set_font(_FONT_NAME, "B", 12)
-        pdf.cell(0, 10, "Top Red Flags", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
+        header_label = "Top Red Flags" if (critical or high) else "Top Issues"
+        pdf.cell(0, 10, header_label, new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
         pdf.ln(2)
 
         pdf.set_font(_FONT_NAME, "", 9)
-        priority_issues = (critical + high)[:10]  # Show top 10 only
-        
+        if critical or high:
+            shown_pool = critical + high
+        else:
+            shown_pool = medium
+        priority_issues = shown_pool[:10]
+        n_overflow = len(shown_pool) - len(priority_issues)
+
         if not priority_issues:
-            pdf.cell(0, 5, "No Critical or High severity issues detected.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(0, 5, "No issues detected.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
         for issue in priority_issues:
             # Color code severity tag (Text based in PDF)
@@ -164,6 +173,13 @@ class ReportGenerator:
             pdf.cell(0, 5, f"{safe_type} @ {safe_loc}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.multi_cell(0, 5, f"   Detail: {safe_detail}")
             pdf.ln(2)
+
+        if n_overflow > 0:
+            pdf.set_font(_FONT_NAME, "", 9)
+            pdf.cell(
+                0, 5, f"... +{n_overflow} more (see Excel details report)",
+                new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+            )
 
         # Fingerprint footer — lets two runs of the same model be compared.
         pdf.ln(8)
